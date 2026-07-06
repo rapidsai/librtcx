@@ -3,10 +3,10 @@
 Contributions to librtcx fall into the following categories:
 
 1. To report a bug, request a new feature, or report a problem with documentation, please file an
-   [issue](https://github.com/rapidsai/cudf/issues/new/choose) describing the problem or new feature
+   [issue](https://github.com/rapidsai/librtcx/issues/new/choose) describing the problem or new feature
    in detail.
 2. To propose and implement a new feature, please file a new feature request
-   [issue](https://github.com/rapidsai/cudf/issues/new/choose). Describe the intended feature and
+   [issue](https://github.com/rapidsai/librtcx/issues/new/choose). Describe the intended feature and
    discuss the design and implementation with the team and community. Once the team agrees that the
    plan looks good, go ahead and implement it, using the [code contributions](#code-contributions)
    guide below.
@@ -19,11 +19,11 @@ As contributors and maintainers to this project, you are expected to abide by th
 
 ## Code contributions
 
-1. Create a fork of the [cudf repository](https://github.com/rapidsai/cudf) and check out a branch
+1. Create a fork of the [librtcx repository](https://github.com/rapidsai/librtcx) and check out a branch
    with a name that describes your planned work.
 2. Write code to address the issue or implement the feature.
 3. Add unit tests.
-4. [Create your pull request](https://github.com/rapidsai/cudf/compare).
+4. [Create your pull request](https://github.com/rapidsai/librtcx/compare).
 5. Verify that CI passes all status checks. Fix if needed.
 6. Wait for other developers to review your code and update code as needed.
 7. Once reviewed and approved, a maintainer will merge your pull request.
