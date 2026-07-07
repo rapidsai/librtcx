@@ -1,6 +1,6 @@
 # =============================================================================
 # cmake-format: off
-# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 # cmake-format: on
 # =============================================================================
@@ -60,7 +60,7 @@ if(NOT TARGET nvtx3::nvtx3-cpp)
   rapids_cpm_nvtx3()
 endif()
 
-add_library(rtcx STATIC rtcx.cpp)
+add_library(rtcx STATIC hash.cpp rtcx.cpp)
 add_library(rtcx::rtcx ALIAS rtcx)
 
 set_target_properties(
@@ -143,7 +143,7 @@ install(
 )
 
 if(RTCX_INSTALL)
-  install(FILES rtcx.hpp sha256.hpp embed.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rtcx)
+  install(FILES rtcx.hpp hash.hpp embed.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rtcx)
   install(FILES embed.cmake embed.in.cpp DESTINATION ${lib_dir}/cmake/rtcx)
   install(DIRECTORY libcxx/ DESTINATION ${CMAKE_INSTALL_DATADIR}/rtcx/libcxx)
 
