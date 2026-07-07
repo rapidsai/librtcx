@@ -5,13 +5,8 @@
 # cmake-format: on
 # =============================================================================
 
-if(NOT TARGET zstd)
-  message(FATAL_ERROR "zstd target is required for LIBRTCX embedding.")
-endif()
-
-if(NOT TARGET xxhash)
-  message(FATAL_ERROR "xxhash target is required for LIBRTCX embedding.")
-endif()
+# Embedding requires zstd and xxhash targets. Check lazily when embedding functions are called
+# rather than at include time, so consumers that only link librtcx don't need these targets.
 
 # This function initializes a target for JIT embedding. It must be called before any calls to
 # embed_includes() or embed_blob() for the target. It creates a dedicated INTERFACE library target
@@ -222,6 +217,13 @@ function(rtcx_embed TARGET)
   set(ONE_VALUE_ARGS "COMPRESSION" "OUTPUT_DIRECTORY")
   set(MULTI_VALUE_ARGS "")
   cmake_parse_arguments(ARG "${OPTIONS}" "${ONE_VALUE_ARGS}" "${MULTI_VALUE_ARGS}" ${ARGN})
+
+  if(NOT TARGET zstd)
+    message(FATAL_ERROR "zstd target is required for rtcx_embed().")
+  endif()
+  if(NOT TARGET xxhash)
+    message(FATAL_ERROR "xxhash target is required for rtcx_embed().")
+  endif()
 
   if(NOT TARGET ${TARGET}__embed_props)
     message(FATAL_ERROR "embed target '${TARGET}' has not been initialized with rtcx_add_embed()")
