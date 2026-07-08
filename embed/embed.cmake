@@ -6,10 +6,62 @@
 # =============================================================================
 include_guard(GLOBAL)
 
-#[==[
-# This function generates the necessary files and build targets to embed the registered source files
-# for JIT compilation.
-#]==]
+#[=======================================================================[.rst:
+rtcx_embed
+----------
+
+Finalize an embed target, generating build artifacts for JIT embedding.
+
+.. code-block:: cmake
+
+  rtcx_embed(<target>
+      COMPRESSION <none|zstd>
+      OUTPUT_DIRECTORY <dir>)
+
+Finalizes the embed target ``<target>`` by configuring a runner executable and
+custom build step that produces the embedded data artifacts. Must be called
+after ``rtcx_add_embed`` and any desired calls to ``rtcx_embed_includes`` or
+``rtcx_embed_blob``.
+
+.. note::
+
+  The ``zstd`` and ``xxhash`` CMake targets must be available before calling
+  ``rtcx_embed``.
+
+``<target>``
+  Required. Name of the embed target, previously initialized with ``rtcx_add_embed``.
+
+``COMPRESSION``
+  Required. Compression method for the embedded data. Must be ``none`` or
+  ``zstd``.
+
+``OUTPUT_DIRECTORY``
+  Required. Directory where the generated artifacts will be written.
+
+Result Variables
+^^^^^^^^^^^^^^^^
+
+``<target>_INCLUDE_DIRS``
+  Set in the calling scope to ``OUTPUT_DIRECTORY``. Add to target include
+  directories to access the generated header.
+
+``<target>_SOURCE_DIR``
+  Set in the calling scope to ``OUTPUT_DIRECTORY``.
+
+Generated Files
+^^^^^^^^^^^^^^^
+
+The following files are created in ``OUTPUT_DIRECTORY``:
+
+``<target>.hpp``
+  C++ header declaring the embedded data symbols.
+
+``<target>.s``
+  assembly file containing the embedded data.
+
+``<target>.bin``
+  raw binary of the embedded data.
+#]=======================================================================]
 # cmake-lint: disable=R0915
 function(rtcx_embed TARGET)
   set(OPTIONS "")

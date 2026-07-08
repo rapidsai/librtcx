@@ -6,6 +6,42 @@
 # =============================================================================
 include_guard(GLOBAL)
 
+#[=======================================================================[.rst:
+rtcx_embed_includes
+--------------------
+
+Register a directory of source and header files into an embed target for JIT embedding.
+
+.. code-block:: cmake
+
+  rtcx_embed_includes(<target>
+      SOURCE_DIRECTORY <dir>
+      DEST_DIRECTORY <dest>
+      INCLUDE_DIRECTORIES <dir>...
+      [FILES <file>...])
+
+Registers files from ``SOURCE_DIRECTORY`` into embed target ``<target>``. May be
+called multiple times on the same target. Must be called after ``rtcx_add_embed``
+and before ``rtcx_embed``.
+
+``<target>``
+  Required. Name of the embed target, previously initialized with ``rtcx_add_embed``.
+
+``SOURCE_DIRECTORY``
+  Required. Directory containing the source files to embed.
+
+``DEST_DIRECTORY``
+  Required. Virtual destination path within the embedded filesystem.
+
+``INCLUDE_DIRECTORIES``
+  Required. Include paths that will be available when compiling with these
+  embedded files.
+
+``FILES``
+  Optional. List of files relative to ``SOURCE_DIRECTORY`` to register. If
+  omitted, all files under ``SOURCE_DIRECTORY`` are globbed recursively.
+#]=======================================================================]
+
 function(rtcx_embed_includes TARGET)
   set(OPTIONS "")
   set(ONE_VALUE_ARGS SOURCE_DIRECTORY # Source directory where files will be copied from

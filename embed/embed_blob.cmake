@@ -6,6 +6,48 @@
 # =============================================================================
 include_guard(GLOBAL)
 
+#[=======================================================================[.rst:
+rtcx_embed_blob
+---------------
+
+Register a single binary blob or compiled object file into an embed target for JIT embedding.
+
+.. code-block:: cmake
+
+  rtcx_embed_blob(<target>
+      ID <id>
+      FILE <file>
+      DEST <dest>
+      [ARRAY_IDS <key>... ARRAY_VALUES <value>...])
+
+Registers a single file or binary blob into embed target ``<target>``. May be
+called multiple times on the same target. Must be called after
+``rtcx_add_embed`` and before ``rtcx_embed``.
+
+``<target>``
+  Required. Name of the embed target, previously initialized with ``rtcx_add_embed``.
+
+``ID``
+  Required. Unique identifier for this blob within the embed target.
+
+``FILE``
+  Required. Path to the file to embed. Accepts CMake generator expressions,
+  such as ``$<TARGET_OBJECTS:target_name>``, for embedding compiled object
+  files.
+
+``DEST``
+  Required. Virtual destination path within the embedded filesystem.
+
+``ARRAY_IDS``
+  Optional. List of metadata key names to associate with this blob entry. Must
+  be provided together with ``ARRAY_VALUES`` and both lists must have equal
+  length.
+
+``ARRAY_VALUES``
+  Optional. List of metadata values corresponding to the keys in
+  ``ARRAY_IDS``.
+#]=======================================================================]
+
 function(rtcx_embed_blob TARGET)
   set(OPTIONS)
   set(ONE_VALUE_ARGS ID FILE DEST)

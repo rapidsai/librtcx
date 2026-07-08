@@ -6,6 +6,23 @@
 # =============================================================================
 include_guard(GLOBAL)
 
+#[=======================================================================[.rst:
+rtcx_add_embed
+---------------
+
+Initialize an embed target for JIT embedding.
+
+.. code-block:: cmake
+
+  rtcx_add_embed(<target>)
+
+Initializes the embed target ``<target>``. Must be called before
+``rtcx_embed_includes``, ``rtcx_embed_blob``, or ``rtcx_embed``.
+
+``<target>``
+  Required. Name of the logical embed group to initialize.
+#]=======================================================================]
+
 function(rtcx_add_embed TARGET)
   set(OPTIONS "")
   set(ONE_VALUE_ARGS)
