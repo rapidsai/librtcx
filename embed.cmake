@@ -15,10 +15,10 @@ blobs into executables for JIT compilation at runtime.
 
 The embed system is built around four functions that must be called in order:
 
-1. :ref:`rtcx_add_embed` — initialize an embed target.
-2. :ref:`rtcx_embed_includes` — register header/source directories (call 0 or more times).
-3. :ref:`rtcx_embed_blob` — register binary blobs or compiled objects (call 0 or more times).
-4. :ref:`rtcx_embed` — finalize and generate the embedded artifacts.
+1. :ref:`rtcx_add_embed` - initialize an embed target.
+2. :ref:`rtcx_embed_includes` - register header/source directories (call 0 or more times).
+3. :ref:`rtcx_embed_blob` - register binary blobs or compiled objects (call 0 or more times).
+4. :ref:`rtcx_embed` - finalize and generate the embedded artifacts.
 
 Each function is defined in a separate file under ``embed/`` and auto-included
 when this file is included.
