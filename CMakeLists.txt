@@ -144,7 +144,8 @@ install(
 
 if(RTCX_INSTALL)
   install(FILES rtcx.hpp hash.hpp embed.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rtcx)
-  install(FILES embed.cmake embed.in.cpp DESTINATION ${lib_dir}/cmake/rtcx)
+  install(FILES embed.cmake DESTINATION ${lib_dir}/cmake/rtcx)
+  install(DIRECTORY embed/ DESTINATION ${lib_dir}/cmake/rtcx/embed)
   install(DIRECTORY libcxx/ DESTINATION ${CMAKE_INSTALL_DATADIR}/rtcx/libcxx)
 
   rapids_export(
