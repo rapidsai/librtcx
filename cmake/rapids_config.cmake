@@ -1,6 +1,6 @@
 # =============================================================================
 # cmake-format: off
-# SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 # cmake-format: on
 # =============================================================================
@@ -13,17 +13,13 @@ if(_rapids_version MATCHES [[^([0-9]+)\.([0-9]+)\.([0-9]+)]])
   set(RAPIDS_VERSION "${RAPIDS_VERSION_MAJOR}.${RAPIDS_VERSION_MINOR}.${RAPIDS_VERSION_PATCH}")
 else()
   string(REPLACE "\n" "\n  " _rapids_version_formatted "  ${_rapids_version}")
-  message(
-    FATAL_ERROR
-      "Could not determine RAPIDS version. Contents of VERSION file:\n${_rapids_version_formatted}"
+  message(FATAL_ERROR "Could not determine RAPIDS version. Contents of VERSION file:\n${_rapids_version_formatted}"
   )
 endif()
 
 file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/../RAPIDS_BRANCH" RAPIDS_BRANCH)
 if(NOT RAPIDS_BRANCH)
-  message(
-    FATAL_ERROR
-      "Could not determine branch name to use for checking out rapids-cmake. The file \"${CMAKE_CURRENT_LIST_DIR}/../RAPIDS_BRANCH\" is missing."
+  message(FATAL_ERROR "Could not determine branch name to use for checking out rapids-cmake. The file \"${CMAKE_CURRENT_LIST_DIR}/../RAPIDS_BRANCH\" is missing."
   )
 endif()
 

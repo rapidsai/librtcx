@@ -58,12 +58,8 @@ function(rtcx_embed_includes TARGET)
     message(FATAL_ERROR "embed target '${TARGET}' has not been initialized with add_embed()")
   endif()
 
-  if(NOT ARG_SOURCE_DIRECTORY
-     OR NOT ARG_DEST_DIRECTORY
-     OR NOT ARG_INCLUDE_DIRECTORIES
-  )
-    message(
-      FATAL_ERROR "SOURCE_DIRECTORY, DEST_DIRECTORY, and INCLUDE_DIRECTORIES arguments are required"
+  if(NOT ARG_SOURCE_DIRECTORY OR NOT ARG_DEST_DIRECTORY OR NOT ARG_INCLUDE_DIRECTORIES)
+    message(FATAL_ERROR "SOURCE_DIRECTORY, DEST_DIRECTORY, and INCLUDE_DIRECTORIES arguments are required"
     )
   endif()
 
@@ -89,43 +85,23 @@ function(rtcx_embed_includes TARGET)
   endforeach(SOURCE_FILE)
 
   # Determine the starting index for new IDs from the current list length
-  get_property(
-    SOURCE_FILE_IDS
-    TARGET ${TARGET}__embed_props
-    PROPERTY EMBED_SOURCE_FILE_IDS
-  )
+  get_property(SOURCE_FILE_IDS TARGET ${TARGET}__embed_props PROPERTY EMBED_SOURCE_FILE_IDS)
   list(LENGTH SOURCE_FILE_IDS IDX)
 
   foreach(SOURCE_FILE IN LISTS ARG_FILES)
-    set_property(
-      TARGET ${TARGET}__embed_props
-      APPEND
-      PROPERTY EMBED_SOURCE_FILE_IDS "include_${IDX}"
-    )
-    set_property(
-      TARGET ${TARGET}__embed_props
-      APPEND
-      PROPERTY EMBED_SOURCE_FILES "${ARG_SOURCE_DIRECTORY}/${SOURCE_FILE}"
-    )
-    set_property(
-      TARGET ${TARGET}__embed_props
-      APPEND
-      PROPERTY EMBED_SOURCE_FILE_DESTS "${ARG_DEST_DIRECTORY}/${SOURCE_FILE}"
-    )
+    set_property(TARGET ${TARGET}__embed_props APPEND PROPERTY EMBED_SOURCE_FILE_IDS
+                                                               "include_${IDX}")
+    set_property(TARGET ${TARGET}__embed_props APPEND
+                 PROPERTY EMBED_SOURCE_FILES "${ARG_SOURCE_DIRECTORY}/${SOURCE_FILE}")
+    set_property(TARGET ${TARGET}__embed_props APPEND
+                 PROPERTY EMBED_SOURCE_FILE_DESTS "${ARG_DEST_DIRECTORY}/${SOURCE_FILE}")
     math(EXPR IDX "${IDX} + 1")
   endforeach()
 
-  set_property(
-    TARGET ${TARGET}__embed_props
-    APPEND
-    PROPERTY EMBED_INCLUDE_DIRECTORIES ${ARG_INCLUDE_DIRECTORIES}
-  )
+  set_property(TARGET ${TARGET}__embed_props APPEND PROPERTY EMBED_INCLUDE_DIRECTORIES
+                                                             ${ARG_INCLUDE_DIRECTORIES})
 
-  get_property(
-    SOURCE_FILE_IDS
-    TARGET ${TARGET}__embed_props
-    PROPERTY EMBED_SOURCE_FILE_IDS
-  )
+  get_property(SOURCE_FILE_IDS TARGET ${TARGET}__embed_props PROPERTY EMBED_SOURCE_FILE_IDS)
   list(LENGTH SOURCE_FILE_IDS IDX)
 
   set_property(TARGET ${TARGET}__embed_props PROPERTY EMBED_FILE_INDEX ${IDX})
