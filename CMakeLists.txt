@@ -51,7 +51,7 @@ if(NOT TARGET nvtx3::nvtx3-cpp)
   rapids_cpm_nvtx3()
 endif()
 
-add_library(rtcx STATIC hash.cpp rtcx.cpp)
+add_library(rtcx STATIC hash.cpp rtcx.cpp AlgorithmLauncher.cpp AlgorithmPlanner.cpp FragmentEntry.cpp nvjitlink_checker.cpp NVRTCLTOFragmentCompiler.cpp)
 add_library(rtcx::rtcx ALIAS rtcx)
 
 set_target_properties(rtcx
@@ -95,6 +95,7 @@ set(rtcx_install_code_string
 # Embed functions (add_embed, embed_includes, embed_blob, embed)
 # are included automatically so consumers don't need explicit include().
 include("${CMAKE_CURRENT_LIST_DIR}/embed.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/generate_jit_lto_kernels.cmake")
 
 # Set rtcx_LIBCXX_DIR for consumers using embed_includes with libcxx headers.
 set(rtcx_LIBCXX_DIR "${PACKAGE_PREFIX_DIR}/share/rtcx/libcxx")
@@ -104,6 +105,7 @@ string(CONFIGURE [=[
 # Embed functions (add_embed, embed_includes, embed_blob, embed)
 # are included automatically so consumers don't need explicit include().
 include("@CMAKE_CURRENT_SOURCE_DIR@/embed.cmake")
+include("@CMAKE_CURRENT_SOURCE_DIR@/generate_jit_lto_kernels.cmake")
 
 # Set rtcx_LIBCXX_DIR for consumers using embed_includes with libcxx headers.
 set(rtcx_LIBCXX_DIR "@CMAKE_CURRENT_SOURCE_DIR@/libcxx")
@@ -126,6 +128,8 @@ if(RTCX_INSTALL)
   install(FILES rtcx.hpp hash.hpp embed.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rtcx)
   install(FILES embed.cmake DESTINATION ${lib_dir}/cmake/rtcx)
   install(DIRECTORY embed/ DESTINATION ${lib_dir}/cmake/rtcx/embed)
+  install(FILES AlgorithmLauncher.hpp AlgorithmPlanner.hpp FragmentEntry.hpp nvjitlink_checker.hpp NVRTCLTOFRagmentCompiler.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rtcx)
+  install(FILES generate_jit_lto_kernels.cmake register_fatbin.cpp.in DESTINATION ${lib_dir}/cmake/rtcx)
   install(DIRECTORY libcxx/ DESTINATION ${CMAKE_INSTALL_DATADIR}/rtcx/libcxx)
 
   rapids_export(INSTALL rtcx
