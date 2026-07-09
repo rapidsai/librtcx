@@ -1,9 +1,13 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
+
+#include "nvjitlink_checker.hpp"
+
+#include <nvJitLink.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -11,20 +15,16 @@
 #include <typeinfo>
 #include <vector>
 
-#include <nvJitLink.h>
-
-#include "nvjitlink_checker.hpp"
-
 struct FragmentEntry {
   virtual ~FragmentEntry() = default;
 
   virtual bool add_to(nvJitLinkHandle& handle) const = 0;
 
-  virtual const char* get_key() const = 0;
+  virtual char const* get_key() const = 0;
 };
 
 struct FatbinFragmentEntry : FragmentEntry {
-  virtual const uint8_t* get_data() const = 0;
+  virtual uint8_t const* get_data() const = 0;
 
   virtual size_t get_length() const = 0;
 
@@ -33,17 +33,17 @@ struct FatbinFragmentEntry : FragmentEntry {
 
 template <typename FragmentTag>
 struct StaticFatbinFragmentEntry final : FatbinFragmentEntry {
-  const uint8_t* get_data() const override { return StaticFatbinFragmentEntry<FragmentTag>::data; }
+  uint8_t const* get_data() const override { return StaticFatbinFragmentEntry<FragmentTag>::data; }
 
   size_t get_length() const override { return StaticFatbinFragmentEntry<FragmentTag>::length; }
 
-  const char* get_key() const override
+  char const* get_key() const override
   {
     return typeid(StaticFatbinFragmentEntry<FragmentTag>).name();
   }
 
-  static const uint8_t* const data;
-  static const size_t length;
+  static uint8_t const* const data;
+  static size_t const length;
 };
 
 struct UDFFatbinFragment final : FatbinFragmentEntry {
@@ -52,11 +52,11 @@ struct UDFFatbinFragment final : FatbinFragmentEntry {
   {
   }
 
-  const uint8_t* get_data() const override { return bytes_.data(); }
+  uint8_t const* get_data() const override { return bytes_.data(); }
 
   size_t get_length() const override { return bytes_.size(); }
 
-  const char* get_key() const override { return key_.c_str(); }
+  char const* get_key() const override { return key_.c_str(); }
 
  private:
   std::string key_;

@@ -1,9 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
+
+#include "AlgorithmLauncher.hpp"
+#include "FragmentEntry.hpp"
 
 #include <memory>
 #include <shared_mutex>
@@ -12,9 +15,6 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
-
-#include "AlgorithmLauncher.hpp"
-#include "FragmentEntry.hpp"
 
 struct LauncherJitCache {
   std::shared_mutex mutex;

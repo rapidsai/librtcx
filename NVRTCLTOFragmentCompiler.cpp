@@ -1,17 +1,16 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "cuda.h"
+
 #include <NVRTCLTOFragmentCompiler.hpp>
-
-#include <mutex>
-
+#include <nvrtc.h>
 #include <raft/core/error.hpp>
 #include <raft/util/cuda_rt_essentials.hpp>
 
-#include "cuda.h"
-#include <nvrtc.h>
+#include <mutex>
 
 #define NVRTC_SAFE_CALL(_call)                                                 \
   {                                                                            \
@@ -64,9 +63,9 @@ std::unique_ptr<UDFFatbinFragment> NVRTCLTOFragmentCompiler::compile(std::string
     nvrtcCreateProgram(&prog, code.c_str(), "nvrtc_lto_fragment", 0, nullptr, nullptr));
 
   // Convert std::vector<std::string> to std::vector<const char*> for nvrtc API
-  std::vector<const char*> opts;
+  std::vector<char const*> opts;
   opts.reserve(this->standard_compile_opts.size());
-  for (const auto& opt : this->standard_compile_opts) {
+  for (auto const& opt : this->standard_compile_opts) {
     opts.push_back(opt.c_str());
   }
 

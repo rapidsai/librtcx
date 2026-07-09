@@ -1,7 +1,15 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
+
+#include "cuda_runtime.h"
+#include "nvJitLink.h"
+
+#include <AlgorithmPlanner.hpp>
+#include <nvjitlink_checker.hpp>
+#include <raft/core/logger.hpp>
+#include <raft/util/cuda_rt_essentials.hpp>
 
 #include <chrono>
 #include <iterator>
@@ -12,19 +20,10 @@
 #include <string>
 #include <vector>
 
-#include <AlgorithmPlanner.hpp>
-#include <nvjitlink_checker.hpp>
-
-#include "cuda_runtime.h"
-#include "nvJitLink.h"
-
-#include <raft/core/logger.hpp>
-#include <raft/util/cuda_rt_essentials.hpp>
-
 std::string AlgorithmPlanner::get_fragments_key() const
 {
   std::string key = "";
-  for (const auto& fragment : this->fragments) {
+  for (auto const& fragment : this->fragments) {
     key += fragment->get_key();
   }
   return key;
@@ -50,7 +49,7 @@ std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::get_launcher()
 
   std::string log_message =
     "JIT compiling launcher for kernel: " + this->entrypoint + " and device functions: ";
-  for (const auto& fragment : this->fragments) {
+  for (auto const& fragment : this->fragments) {
     log_message += std::string{fragment->get_key()} + ",";
   }
   log_message.pop_back();
@@ -73,7 +72,7 @@ std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::build()
 
   // Load the generated LTO IR and link them together
   nvJitLinkHandle handle;
-  std::vector<const char*> lopts;
+  std::vector<char const*> lopts;
   lopts.reserve(2 + linktime_extra_options.size());
   lopts.push_back("-lto");
   lopts.push_back(archs.c_str());
@@ -83,7 +82,7 @@ std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::build()
   auto result = nvJitLinkCreate(&handle, static_cast<unsigned int>(lopts.size()), lopts.data());
   check_nvjitlink_result(handle, result);
 
-  for (const auto& frag : this->fragments) {
+  for (auto const& frag : this->fragments) {
     frag->add_to(handle);
   }
 

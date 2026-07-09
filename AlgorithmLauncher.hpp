@@ -1,18 +1,19 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 
-#include <cstdint>
+#include <cuda_runtime.h>
+
 #include <driver_types.h>
-#include <string>
-#include <unordered_map>
 #include <vector_types.h>
 
-#include <cuda_runtime.h>
+#include <cstdint>
 #include <memory>
+#include <string>
+#include <unordered_map>
 
 struct AlgorithmLauncher {
   AlgorithmLauncher() : kernel{nullptr}, library{nullptr} {}
@@ -21,8 +22,8 @@ struct AlgorithmLauncher {
 
   ~AlgorithmLauncher();
 
-  AlgorithmLauncher(const AlgorithmLauncher&)            = delete;
-  AlgorithmLauncher& operator=(const AlgorithmLauncher&) = delete;
+  AlgorithmLauncher(AlgorithmLauncher const&)            = delete;
+  AlgorithmLauncher& operator=(AlgorithmLauncher const&) = delete;
 
   AlgorithmLauncher(AlgorithmLauncher&& other) noexcept;
   AlgorithmLauncher& operator=(AlgorithmLauncher&& other) noexcept;

@@ -1,15 +1,14 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <nvJitLink.h>
 #include <nvjitlink_checker.hpp>
+#include <raft/core/error.hpp>
 
 #include <memory>
-#include <nvJitLink.h>
 #include <string>
-
-#include <raft/core/error.hpp>
 
 void check_nvjitlink_result(nvJitLinkHandle handle, nvJitLinkResult result)
 {
