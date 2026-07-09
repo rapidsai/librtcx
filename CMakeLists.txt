@@ -21,30 +21,19 @@ project(rtcx VERSION 0.1.0 LANGUAGES CXX)
 option(RTCX_STATIC_LINK_NVRTC "Use static linking for NVRTC" OFF)
 option(RTCX_STATIC_LINK_NVJITLINK "Use static linking for nvJitLink" OFF)
 
-rapids_find_package(CUDAToolkit REQUIRED BUILD_EXPORT_SET rtcx-exports INSTALL_EXPORT_SET
-                    rtcx-exports)
+rapids_find_package(CUDAToolkit REQUIRED BUILD_EXPORT_SET rtcx-exports
+                    INSTALL_EXPORT_SET rtcx-exports)
 
 if(NOT TARGET zstd)
   set(CPM_DOWNLOAD_zstd ON)
-  rapids_cpm_find(zstd
-                  1.5.7
-                  GLOBAL_TARGETS
-                  zstd
+  rapids_cpm_find(zstd 1.5.7
+                  GLOBAL_TARGETS zstd
                   CPM_ARGS
-                  GIT_REPOSITORY
-                  https://github.com/facebook/zstd.git
-                  GIT_TAG
-                  v1.5.7
-                  GIT_SHALLOW
-                  FALSE
-                  SOURCE_SUBDIR
-                  build/cmake
-                  OPTIONS
-                  "ZSTD_BUILD_STATIC ON"
-                  "ZSTD_BUILD_SHARED OFF"
-                  "ZSTD_BUILD_TESTS OFF"
-                  "ZSTD_BUILD_PROGRAMS OFF"
-                  "BUILD_SHARED_LIBS OFF")
+                  GIT_REPOSITORY https://github.com/facebook/zstd.git
+                  GIT_TAG v1.5.7
+                  GIT_SHALLOW FALSE SOURCE_SUBDIR build/cmake
+                  OPTIONS "ZSTD_BUILD_STATIC ON" "ZSTD_BUILD_SHARED OFF" "ZSTD_BUILD_TESTS OFF"
+                          "ZSTD_BUILD_PROGRAMS OFF" "BUILD_SHARED_LIBS OFF")
 
   if(zstd_ADDED)
     # disable weak symbols support to hide tracing APIs as well
@@ -139,10 +128,16 @@ if(RTCX_INSTALL)
   install(DIRECTORY embed/ DESTINATION ${lib_dir}/cmake/rtcx/embed)
   install(DIRECTORY libcxx/ DESTINATION ${CMAKE_INSTALL_DATADIR}/rtcx/libcxx)
 
-  rapids_export(INSTALL rtcx EXPORT_SET rtcx-exports GLOBAL_TARGETS rtcx NAMESPACE rtcx::
+  rapids_export(INSTALL rtcx
+                EXPORT_SET rtcx-exports
+                GLOBAL_TARGETS rtcx
+                NAMESPACE rtcx::
                 FINAL_CODE_BLOCK rtcx_install_code_string)
 endif()
 
 # Build-tree export (always, so CPM consumers can find_package from the build tree)
-rapids_export(BUILD rtcx EXPORT_SET rtcx-exports GLOBAL_TARGETS rtcx NAMESPACE rtcx::
+rapids_export(BUILD rtcx
+              EXPORT_SET rtcx-exports
+              GLOBAL_TARGETS rtcx
+              NAMESPACE rtcx::
               FINAL_CODE_BLOCK rtcx_build_code_string)
