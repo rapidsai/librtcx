@@ -92,50 +92,19 @@ function(rtcx_embed TARGET)
     message(FATAL_ERROR "OUTPUT_DIRECTORY argument is required")
   endif()
 
-  get_property(
-    EMBED_SOURCE_FILES
-    TARGET ${TARGET}__embed_props
-    PROPERTY EMBED_SOURCE_FILES
-  )
+  get_property(EMBED_SOURCE_FILES TARGET ${TARGET}__embed_props PROPERTY EMBED_SOURCE_FILES)
   if(NOT EMBED_SOURCE_FILES)
     message(FATAL_ERROR "No source files registered for target '${TARGET}'")
   endif()
 
-  get_property(
-    EMBED_SOURCE_FILE_IDS
-    TARGET ${TARGET}__embed_props
-    PROPERTY EMBED_SOURCE_FILE_IDS
-  )
-  get_property(
-    EMBED_SOURCE_FILE_DESTS
-    TARGET ${TARGET}__embed_props
-    PROPERTY EMBED_SOURCE_FILE_DESTS
-  )
-  get_property(
-    EMBED_TARGET_DEPS
-    TARGET ${TARGET}__embed_props
-    PROPERTY EMBED_TARGET_DEPS
-  )
-  get_property(
-    EMBED_TARGET_DEP_NAMES
-    TARGET ${TARGET}__embed_props
-    PROPERTY EMBED_TARGET_DEP_NAMES
-  )
-  get_property(
-    EMBED_ARRAY_IDS
-    TARGET ${TARGET}__embed_props
-    PROPERTY EMBED_ARRAY_IDS
-  )
-  get_property(
-    EMBED_ARRAY_VALUES
-    TARGET ${TARGET}__embed_props
-    PROPERTY EMBED_ARRAY_VALUES
-  )
-  get_property(
-    EMBED_INCLUDE_DIRS
-    TARGET ${TARGET}__embed_props
-    PROPERTY EMBED_INCLUDE_DIRECTORIES
-  )
+  get_property(EMBED_SOURCE_FILE_IDS TARGET ${TARGET}__embed_props PROPERTY EMBED_SOURCE_FILE_IDS)
+  get_property(EMBED_SOURCE_FILE_DESTS TARGET ${TARGET}__embed_props
+               PROPERTY EMBED_SOURCE_FILE_DESTS)
+  get_property(EMBED_TARGET_DEPS TARGET ${TARGET}__embed_props PROPERTY EMBED_TARGET_DEPS)
+  get_property(EMBED_TARGET_DEP_NAMES TARGET ${TARGET}__embed_props PROPERTY EMBED_TARGET_DEP_NAMES)
+  get_property(EMBED_ARRAY_IDS TARGET ${TARGET}__embed_props PROPERTY EMBED_ARRAY_IDS)
+  get_property(EMBED_ARRAY_VALUES TARGET ${TARGET}__embed_props PROPERTY EMBED_ARRAY_VALUES)
+  get_property(EMBED_INCLUDE_DIRS TARGET ${TARGET}__embed_props PROPERTY EMBED_INCLUDE_DIRECTORIES)
 
   set(OUTPUT_DIR "${ARG_OUTPUT_DIRECTORY}")
   set(EMBED_SCRIPT_TEMPLATE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/embed.in.cpp")
@@ -153,49 +122,33 @@ function(rtcx_embed TARGET)
   set(EMBED_SCRIPT__OUTPUT_DIR "${OUTPUT_DIR}")
 
   configure_file(${EMBED_SCRIPT_TEMPLATE} ${CONFIGURED_EMBED_SCRIPT} @ONLY)
-  file(
-    GENERATE
-    OUTPUT "${EMBED_SCRIPT}"
-    INPUT "${CONFIGURED_EMBED_SCRIPT}"
-  )
+  file(GENERATE OUTPUT "${EMBED_SCRIPT}" INPUT "${CONFIGURED_EMBED_SCRIPT}")
 
   set(RUNNER "${TARGET}__jit_embed_run")
-  add_executable(
-    ${RUNNER} EXCLUDE_FROM_ALL "${EMBED_SCRIPT}" ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../hash.cpp
-  )
+  add_executable(${RUNNER} EXCLUDE_FROM_ALL "${EMBED_SCRIPT}"
+                                            ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../hash.cpp)
   target_link_libraries(${RUNNER} PRIVATE ${CMAKE_DL_LIBS} xxhash zstd)
-  target_include_directories(
-    ${RUNNER} PRIVATE ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/.. ${ZSTD_INCLUDE_DIR}
-  )
+  target_include_directories(${RUNNER} PRIVATE ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/..
+                                               ${ZSTD_INCLUDE_DIR})
   set_target_properties(${RUNNER} PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED YES)
 
-  add_custom_command(
-    OUTPUT ${OUTPUT_DIR}/${TARGET}.hpp ${OUTPUT_DIR}/${TARGET}.s ${OUTPUT_DIR}/${TARGET}.bin
-    COMMAND "${CMAKE_COMMAND}" -E env $<TARGET_FILE:${RUNNER}>
-    DEPENDS "${EMBED_SCRIPT}" ${EMBED_SOURCE_FILES} ${EMBED_TARGET_DEPS} ${EMBED_TARGET_DEP_NAMES}
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    COMMENT "Generating JIT embed for ${TARGET} into ${OUTPUT_DIR}"
-    VERBATIM
+  add_custom_command(OUTPUT ${OUTPUT_DIR}/${TARGET}.hpp ${OUTPUT_DIR}/${TARGET}.s
+                            ${OUTPUT_DIR}/${TARGET}.bin
+                     COMMAND "${CMAKE_COMMAND}" -E env $<TARGET_FILE:${RUNNER}>
+                     DEPENDS "${EMBED_SCRIPT}" ${EMBED_SOURCE_FILES} ${EMBED_TARGET_DEPS}
+                             ${EMBED_TARGET_DEP_NAMES}
+                     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+                     COMMENT "Generating JIT embed for ${TARGET} into ${OUTPUT_DIR}"
+                     VERBATIM)
+
+  add_custom_target(${TARGET} ALL DEPENDS ${OUTPUT_DIR}/${TARGET}.hpp ${OUTPUT_DIR}/${TARGET}.s
+                                          ${OUTPUT_DIR}/${TARGET}.bin
+                    COMMENT "Custom target for JIT embed of ${TARGET}")
+
+  message(STATUS "JIT embed for target ${TARGET} will be generated into: ${OUTPUT_DIR}/${TARGET}.hpp ${OUTPUT_DIR}/${TARGET}.s ${OUTPUT_DIR}/${TARGET}.bin"
   )
 
-  add_custom_target(
-    ${TARGET} ALL
-    DEPENDS ${OUTPUT_DIR}/${TARGET}.hpp ${OUTPUT_DIR}/${TARGET}.s ${OUTPUT_DIR}/${TARGET}.bin
-    COMMENT "Custom target for JIT embed of ${TARGET}"
-  )
+  set(${TARGET}_INCLUDE_DIRS "${OUTPUT_DIR}" PARENT_SCOPE)
 
-  message(
-    STATUS
-      "JIT embed for target ${TARGET} will be generated into: ${OUTPUT_DIR}/${TARGET}.hpp ${OUTPUT_DIR}/${TARGET}.s ${OUTPUT_DIR}/${TARGET}.bin"
-  )
-
-  set(${TARGET}_INCLUDE_DIRS
-      "${OUTPUT_DIR}"
-      PARENT_SCOPE
-  )
-
-  set(${TARGET}_SOURCE_DIR
-      ${OUTPUT_DIR}
-      PARENT_SCOPE
-  )
+  set(${TARGET}_SOURCE_DIR ${OUTPUT_DIR} PARENT_SCOPE)
 endfunction()

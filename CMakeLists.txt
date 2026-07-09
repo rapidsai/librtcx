@@ -16,33 +16,24 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   rapids_cpm_init()
 endif()
 
-project(
-  rtcx
-  VERSION 0.1.0
-  LANGUAGES CXX
-)
+project(rtcx VERSION 0.1.0 LANGUAGES CXX)
 
 option(RTCX_STATIC_LINK_NVRTC "Use static linking for NVRTC" OFF)
 option(RTCX_STATIC_LINK_NVJITLINK "Use static linking for nvJitLink" OFF)
 
-rapids_find_package(
-  CUDAToolkit REQUIRED
-  BUILD_EXPORT_SET rtcx-exports
-  INSTALL_EXPORT_SET rtcx-exports
-)
+rapids_find_package(CUDAToolkit REQUIRED BUILD_EXPORT_SET rtcx-exports
+                    INSTALL_EXPORT_SET rtcx-exports)
 
 if(NOT TARGET zstd)
   set(CPM_DOWNLOAD_zstd ON)
-  rapids_cpm_find(
-    zstd 1.5.7
-    GLOBAL_TARGETS zstd
-    CPM_ARGS
-    GIT_REPOSITORY https://github.com/facebook/zstd.git
-    GIT_TAG v1.5.7
-    GIT_SHALLOW FALSE SOURCE_SUBDIR build/cmake
-    OPTIONS "ZSTD_BUILD_STATIC ON" "ZSTD_BUILD_SHARED OFF" "ZSTD_BUILD_TESTS OFF"
-            "ZSTD_BUILD_PROGRAMS OFF" "BUILD_SHARED_LIBS OFF"
-  )
+  rapids_cpm_find(zstd 1.5.7
+                  GLOBAL_TARGETS zstd
+                  CPM_ARGS
+                  GIT_REPOSITORY https://github.com/facebook/zstd.git
+                  GIT_TAG v1.5.7
+                  GIT_SHALLOW FALSE SOURCE_SUBDIR build/cmake
+                  OPTIONS "ZSTD_BUILD_STATIC ON" "ZSTD_BUILD_SHARED OFF" "ZSTD_BUILD_TESTS OFF"
+                          "ZSTD_BUILD_PROGRAMS OFF" "BUILD_SHARED_LIBS OFF")
 
   if(zstd_ADDED)
     # disable weak symbols support to hide tracing APIs as well
@@ -63,20 +54,15 @@ endif()
 add_library(rtcx STATIC hash.cpp rtcx.cpp)
 add_library(rtcx::rtcx ALIAS rtcx)
 
-set_target_properties(
-  rtcx
-  PROPERTIES CXX_STANDARD 20
-             CXX_STANDARD_REQUIRED YES
-             CXX_VISIBILITY_PRESET hidden
-             VISIBILITY_INLINES_HIDDEN YES
-             POSITION_INDEPENDENT_CODE ON
-)
+set_target_properties(rtcx
+                      PROPERTIES CXX_STANDARD 20
+                                 CXX_STANDARD_REQUIRED YES
+                                 CXX_VISIBILITY_PRESET hidden
+                                 VISIBILITY_INLINES_HIDDEN YES
+                                 POSITION_INDEPENDENT_CODE ON)
 
-target_include_directories(
-  rtcx
-  PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-  PRIVATE ${CUDAToolkit_INCLUDE_DIRS}
-)
+target_include_directories(rtcx PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+                           PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
 
 target_link_libraries(rtcx PRIVATE zstd ${CMAKE_DL_LIBS} nvtx3::nvtx3-cpp)
 
@@ -112,12 +98,9 @@ include("${CMAKE_CURRENT_LIST_DIR}/embed.cmake")
 
 # Set rtcx_LIBCXX_DIR for consumers using embed_includes with libcxx headers.
 set(rtcx_LIBCXX_DIR "${PACKAGE_PREFIX_DIR}/share/rtcx/libcxx")
-]=]
-)
+]=])
 
-string(
-  CONFIGURE
-    [=[
+string(CONFIGURE [=[
 # Embed functions (add_embed, embed_includes, embed_blob, embed)
 # are included automatically so consumers don't need explicit include().
 include("@CMAKE_CURRENT_SOURCE_DIR@/embed.cmake")
@@ -125,22 +108,19 @@ include("@CMAKE_CURRENT_SOURCE_DIR@/embed.cmake")
 # Set rtcx_LIBCXX_DIR for consumers using embed_includes with libcxx headers.
 set(rtcx_LIBCXX_DIR "@CMAKE_CURRENT_SOURCE_DIR@/libcxx")
 ]=]
-    rtcx_build_code_string
-  @ONLY
-)
+                 rtcx_build_code_string
+       @ONLY)
 
 if(NOT RTCX_INSTALL)
   set(rtcx_exclude_from_install EXCLUDE_FROM_ALL)
 endif()
 
-install(
-  TARGETS rtcx
-  EXPORT rtcx-exports
-  ARCHIVE DESTINATION ${lib_dir}
-  INCLUDES
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-  ${rtcx_exclude_from_install}
-)
+install(TARGETS rtcx
+        EXPORT rtcx-exports
+        ARCHIVE DESTINATION ${lib_dir}
+        INCLUDES
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        ${rtcx_exclude_from_install})
 
 if(RTCX_INSTALL)
   install(FILES rtcx.hpp hash.hpp embed.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rtcx)
@@ -148,20 +128,16 @@ if(RTCX_INSTALL)
   install(DIRECTORY embed/ DESTINATION ${lib_dir}/cmake/rtcx/embed)
   install(DIRECTORY libcxx/ DESTINATION ${CMAKE_INSTALL_DATADIR}/rtcx/libcxx)
 
-  rapids_export(
-    INSTALL rtcx
-    EXPORT_SET rtcx-exports
-    GLOBAL_TARGETS rtcx
-    NAMESPACE rtcx::
-    FINAL_CODE_BLOCK rtcx_install_code_string
-  )
+  rapids_export(INSTALL rtcx
+                EXPORT_SET rtcx-exports
+                GLOBAL_TARGETS rtcx
+                NAMESPACE rtcx::
+                FINAL_CODE_BLOCK rtcx_install_code_string)
 endif()
 
 # Build-tree export (always, so CPM consumers can find_package from the build tree)
-rapids_export(
-  BUILD rtcx
-  EXPORT_SET rtcx-exports
-  GLOBAL_TARGETS rtcx
-  NAMESPACE rtcx::
-  FINAL_CODE_BLOCK rtcx_build_code_string
-)
+rapids_export(BUILD rtcx
+              EXPORT_SET rtcx-exports
+              GLOBAL_TARGETS rtcx
+              NAMESPACE rtcx::
+              FINAL_CODE_BLOCK rtcx_build_code_string)
