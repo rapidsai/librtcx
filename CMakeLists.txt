@@ -62,9 +62,6 @@ if(NOT TARGET nvtx3::nvtx3-cpp)
   rapids_cpm_nvtx3()
 endif()
 
-rapids_cpm_find(raft "${RAPIDS_VERSION_MAJOR_MINOR}" GLOBAL_TARGETS raft::raft GIT_REPOSITORY
-                https://github.com/rapidsai/raft.git)
-
 add_library(rtcx STATIC hash.cpp rtcx.cpp AlgorithmLauncher.cpp AlgorithmPlanner.cpp
                         FragmentEntry.cpp nvjitlink_checker.cpp NVRTCLTOFragmentCompiler.cpp)
 add_library(rtcx::rtcx ALIAS rtcx)
@@ -79,7 +76,7 @@ set_target_properties(rtcx
 target_include_directories(rtcx PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
                            PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
 
-target_link_libraries(rtcx PRIVATE zstd ${CMAKE_DL_LIBS} nvtx3::nvtx3-cpp raft::raft)
+target_link_libraries(rtcx PRIVATE zstd ${CMAKE_DL_LIBS} nvtx3::nvtx3-cpp)
 
 if(RTCX_STATIC_LINK_NVRTC)
   target_link_libraries(rtcx PRIVATE CUDA::nvrtc_static CUDA::nvrtc_builtins_static)

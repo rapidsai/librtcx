@@ -4,11 +4,10 @@
  */
 
 #include "cuda.h"
+#include "macros.hpp"
 
 #include <NVRTCLTOFragmentCompiler.hpp>
 #include <nvrtc.h>
-#include <raft/core/error.hpp>
-#include <raft/util/cuda_rt_essentials.hpp>
 
 #include <mutex>
 
@@ -17,7 +16,7 @@
     nvrtcResult result = _call;                                                \
     std::string error_string =                                                 \
       std::string("nvrtc error: ") + std::string(nvrtcGetErrorString(result)); \
-    RAFT_EXPECTS(result == NVRTC_SUCCESS, "%s", error_string.c_str());         \
+    RTCX_EXPECTS(result == NVRTC_SUCCESS, "%s", error_string.c_str());         \
   }
 
 NVRTCLTOFragmentCompiler::NVRTCLTOFragmentCompiler()
@@ -25,9 +24,9 @@ NVRTCLTOFragmentCompiler::NVRTCLTOFragmentCompiler()
   int device = 0;
   int major  = 0;
   int minor  = 0;
-  RAFT_CUDA_TRY(cudaGetDevice(&device));
-  RAFT_CUDA_TRY(cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, device));
-  RAFT_CUDA_TRY(cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMinor, device));
+  RTCX_CUDA_TRY(cudaGetDevice(&device));
+  RTCX_CUDA_TRY(cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, device));
+  RTCX_CUDA_TRY(cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMinor, device));
 
   this->standard_compile_opts = {
     std::string{"-arch=sm_" + std::to_string((major * 10 + minor))},
@@ -80,7 +79,7 @@ std::unique_ptr<UDFFatbinFragment> NVRTCLTOFragmentCompiler::compile(std::string
       NVRTC_SAFE_CALL(nvrtcGetProgramLogSize(prog, &log_size));
       std::unique_ptr<char[]> log{new char[log_size]};
       NVRTC_SAFE_CALL(nvrtcGetProgramLog(prog, log.get()));
-      RAFT_FAIL("nvrtc compile error log: \n%s", log.get());
+      RTCX_FAIL("nvrtc compile error log: \n%s", log.get());
     }
   } catch (...) {
     NVRTC_SAFE_CALL(nvrtcDestroyProgram(&prog));

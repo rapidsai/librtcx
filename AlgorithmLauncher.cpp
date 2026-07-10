@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "macros.hpp"
+
 #include <AlgorithmLauncher.hpp>
-#include <raft/util/cuda_rt_essentials.hpp>
 
 AlgorithmLauncher::AlgorithmLauncher(cudaKernel_t k, cudaLibrary_t lib) : kernel{k}, library{lib} {}
 
@@ -43,7 +44,7 @@ void AlgorithmLauncher::call(
   config.numAttrs         = 0;
   config.attrs            = NULL;
 
-  RAFT_CUDA_TRY(cudaLaunchKernelExC(&config, kernel, kernel_args));
+  RTCX_CUDA_TRY(cudaLaunchKernelExC(&config, kernel, kernel_args));
 }
 
 void AlgorithmLauncher::call_cooperative(
@@ -61,5 +62,5 @@ void AlgorithmLauncher::call_cooperative(
   config.numAttrs         = 1;
   config.attrs            = attribute;
 
-  RAFT_CUDA_TRY(cudaLaunchKernelExC(&config, kernel, kernel_args));
+  RTCX_CUDA_TRY(cudaLaunchKernelExC(&config, kernel, kernel_args));
 }
