@@ -46,13 +46,6 @@ std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::get_launcher()
   std::unique_lock<std::shared_mutex> write_lock(jit_cache_.mutex);
   if (auto it = launchers.find(launch_key); it != launchers.end()) { return it->second; }
 
-  std::string log_message =
-    "JIT compiling launcher for kernel: " + this->entrypoint + " and device functions: ";
-  for (auto const& fragment : this->fragments) {
-    log_message += std::string{fragment->get_key()} + ",";
-  }
-  log_message.pop_back();
-  // RTCX_LOG_DEBUG("%s", log_message.c_str());
   auto launcher         = this->build();
   launchers[launch_key] = launcher;
   return launcher;
