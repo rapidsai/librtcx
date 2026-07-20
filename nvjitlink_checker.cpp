@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "macros.hpp"
+
 #include <nvJitLink.h>
 #include <nvjitlink_checker.hpp>
-#include <raft/core/error.hpp>
 
 #include <memory>
 #include <string>
@@ -21,6 +22,6 @@ void check_nvjitlink_result(nvJitLinkHandle handle, nvJitLinkResult result)
       result = nvJitLinkGetErrorLog(handle, log.get());
       if (result == NVJITLINK_SUCCESS) { error_msg += "\n" + std::string(log.get()); }
     }
-    RAFT_FAIL("AlgorithmPlanner nvJITLink error log: %s", error_msg.c_str());
+    RTCX_FAIL("AlgorithmPlanner nvJITLink error log: %s", error_msg.c_str());
   }
 }

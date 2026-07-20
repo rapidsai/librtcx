@@ -4,12 +4,11 @@
  */
 
 #include "cuda_runtime.h"
+#include "macros.hpp"
 #include "nvJitLink.h"
 
 #include <AlgorithmPlanner.hpp>
 #include <nvjitlink_checker.hpp>
-#include <raft/core/logger.hpp>
-#include <raft/util/cuda_rt_essentials.hpp>
 
 #include <chrono>
 #include <iterator>
@@ -47,13 +46,6 @@ std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::get_launcher()
   std::unique_lock<std::shared_mutex> write_lock(jit_cache_.mutex);
   if (auto it = launchers.find(launch_key); it != launchers.end()) { return it->second; }
 
-  std::string log_message =
-    "JIT compiling launcher for kernel: " + this->entrypoint + " and device functions: ";
-  for (auto const& fragment : this->fragments) {
-    log_message += std::string{fragment->get_key()} + ",";
-  }
-  log_message.pop_back();
-  RAFT_LOG_DEBUG("%s", log_message.c_str());
   auto launcher         = this->build();
   launchers[launch_key] = launcher;
   return launcher;
@@ -64,9 +56,9 @@ std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::build()
   int device = 0;
   int major  = 0;
   int minor  = 0;
-  RAFT_CUDA_TRY(cudaGetDevice(&device));
-  RAFT_CUDA_TRY(cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, device));
-  RAFT_CUDA_TRY(cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMinor, device));
+  RTCX_CUDA_TRY(cudaGetDevice(&device));
+  RTCX_CUDA_TRY(cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, device));
+  RTCX_CUDA_TRY(cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMinor, device));
 
   std::string archs = "-arch=sm_" + std::to_string((major * 10 + minor));
 
@@ -101,15 +93,15 @@ std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::build()
   check_nvjitlink_result(handle, result);
 
   result = nvJitLinkDestroy(&handle);
-  RAFT_EXPECTS(result == NVJITLINK_SUCCESS, "nvJitLinkDestroy failed");
+  RTCX_EXPECTS(result == NVJITLINK_SUCCESS, "nvJitLinkDestroy failed");
 
   // cubin is linked, so now load it
   cudaLibrary_t library;
-  RAFT_CUDA_TRY(
+  RTCX_CUDA_TRY(
     cudaLibraryLoadData(&library, cubin.get(), nullptr, nullptr, 0, nullptr, nullptr, 0));
 
   cudaKernel_t kernel;
-  RAFT_CUDA_TRY(cudaLibraryGetKernel(&kernel, library, this->entrypoint.c_str()));
+  RTCX_CUDA_TRY(cudaLibraryGetKernel(&kernel, library, this->entrypoint.c_str()));
 
   return std::make_shared<AlgorithmLauncher>(kernel, library);
 }
