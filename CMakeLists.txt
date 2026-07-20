@@ -141,9 +141,9 @@ if(RTCX_INSTALL)
   install(FILES embed.cmake DESTINATION ${lib_dir}/cmake/rtcx)
   install(DIRECTORY embed/ DESTINATION ${lib_dir}/cmake/rtcx/embed)
   install(FILES AlgorithmLauncher.hpp AlgorithmPlanner.hpp FragmentEntry.hpp nvjitlink_checker.hpp
-                NVRTCLTOFRagmentCompiler.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rtcx)
-  install(FILES generate_jit_lto_kernels.cmake register_fatbin.cpp.in
-          DESTINATION ${lib_dir}/cmake/rtcx)
+                NVRTCLTOFragmentCompiler.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rtcx)
+  install(FILES generate_jit_lto_kernels.cmake compute_matrix_product.cmake
+                compute_matrix_product.py register_fatbin.cpp.in DESTINATION ${lib_dir}/cmake/rtcx)
   install(DIRECTORY libcxx/ DESTINATION ${CMAKE_INSTALL_DATADIR}/rtcx/libcxx)
 
   rapids_export(INSTALL rtcx EXPORT_SET rtcx-exports GLOBAL_TARGETS rtcx NAMESPACE rtcx::
