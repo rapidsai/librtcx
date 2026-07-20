@@ -63,7 +63,7 @@ endif()
 
 if(NOT TARGET nvtx3::nvtx3-cpp)
   include(${rapids-cmake-dir}/cpm/nvtx3.cmake)
-  rapids_cpm_nvtx3()
+  rapids_cpm_nvtx3(BUILD_EXPORT_SET rtcx-exports INSTALL_EXPORT_SET rtcx-exports)
 endif()
 
 add_library(rtcx STATIC hash.cpp rtcx.cpp AlgorithmLauncher.cpp AlgorithmPlanner.cpp
