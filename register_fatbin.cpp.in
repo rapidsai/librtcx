@@ -4,14 +4,14 @@
  */
 
 #include "@fatbin_header_file@"
-#include <FragmentEntry.hpp>
+#include <fragment_entry.hpp>
 
 @fragment_tag_header_files@
 
 namespace {
 
 using fragment_tag   = @fragment_tag@;
-using fragment_entry = StaticFatbinFragmentEntry<fragment_tag>;
+using fragment_entry = rtcx::static_fatbin_fragment_entry<fragment_tag>;
 
 }  // namespace
 

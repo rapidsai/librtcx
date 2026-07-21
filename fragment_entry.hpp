@@ -13,17 +13,20 @@
 #include <cstdint>
 #include <string>
 #include <typeinfo>
+#include <utility>
 #include <vector>
 
-struct FragmentEntry {
-  virtual ~FragmentEntry() = default;
+namespace rtcx {
+
+struct fragment_entry {
+  virtual ~fragment_entry() = default;
 
   virtual bool add_to(nvJitLinkHandle& handle) const = 0;
 
   virtual char const* get_key() const = 0;
 };
 
-struct FatbinFragmentEntry : FragmentEntry {
+struct fatbin_fragment_entry : fragment_entry {
   virtual uint8_t const* get_data() const = 0;
 
   virtual size_t get_length() const = 0;
@@ -32,22 +35,25 @@ struct FatbinFragmentEntry : FragmentEntry {
 };
 
 template <typename FragmentTag>
-struct StaticFatbinFragmentEntry final : FatbinFragmentEntry {
-  uint8_t const* get_data() const override { return StaticFatbinFragmentEntry<FragmentTag>::data; }
+struct static_fatbin_fragment_entry final : fatbin_fragment_entry {
+  uint8_t const* get_data() const override
+  {
+    return static_fatbin_fragment_entry<FragmentTag>::data;
+  }
 
-  size_t get_length() const override { return StaticFatbinFragmentEntry<FragmentTag>::length; }
+  size_t get_length() const override { return static_fatbin_fragment_entry<FragmentTag>::length; }
 
   char const* get_key() const override
   {
-    return typeid(StaticFatbinFragmentEntry<FragmentTag>).name();
+    return typeid(static_fatbin_fragment_entry<FragmentTag>).name();
   }
 
   static uint8_t const* const data;
   static size_t const length;
 };
 
-struct UDFFatbinFragment final : FatbinFragmentEntry {
-  UDFFatbinFragment(std::string key, std::vector<uint8_t> bytes)
+struct udf_fatbin_fragment final : fatbin_fragment_entry {
+  udf_fatbin_fragment(std::string key, std::vector<uint8_t> bytes)
     : key_(std::move(key)), bytes_(std::move(bytes))
   {
   }
@@ -62,3 +68,5 @@ struct UDFFatbinFragment final : FatbinFragmentEntry {
   std::string key_;
   std::vector<uint8_t> bytes_;
 };
+
+}  // namespace rtcx

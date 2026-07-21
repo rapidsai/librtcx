@@ -5,25 +5,30 @@
 
 #pragma once
 
-#include <FragmentEntry.hpp>
+#include <fragment_entry.hpp>
 
 #include <memory>
 #include <shared_mutex>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
-struct NVRTCLTOFragmentCompiler {
-  NVRTCLTOFragmentCompiler();
+namespace rtcx {
+
+struct nvrtc_lto_fragment_compiler {
+  nvrtc_lto_fragment_compiler();
 
   std::vector<std::string> standard_compile_opts;
   std::unordered_map<std::string, std::vector<uint8_t>> cache;
   mutable std::shared_mutex cache_mutex_;
 
-  std::unique_ptr<UDFFatbinFragment> compile(std::string const& key, std::string const& code);
+  std::unique_ptr<udf_fatbin_fragment> compile(std::string const& key, std::string const& code);
 
  private:
-  std::unique_ptr<UDFFatbinFragment> read_cache(std::string const& key) const;
+  std::unique_ptr<udf_fatbin_fragment> read_cache(std::string const& key) const;
 };
 
-NVRTCLTOFragmentCompiler& nvrtc_compiler();
+nvrtc_lto_fragment_compiler& nvrtc_compiler();
+
+}  // namespace rtcx

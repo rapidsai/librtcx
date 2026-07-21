@@ -3,12 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <FragmentEntry.hpp>
+#include <fragment_entry.hpp>
 
-bool FatbinFragmentEntry::add_to(nvJitLinkHandle& handle) const
+namespace rtcx {
+
+bool fatbin_fragment_entry::add_to(nvJitLinkHandle& handle) const
 {
   auto result = nvJitLinkAddData(handle, NVJITLINK_INPUT_ANY, get_data(), get_length(), get_key());
 
   check_nvjitlink_result(handle, result);
   return true;
 }
+
+}  // namespace rtcx

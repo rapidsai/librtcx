@@ -66,8 +66,8 @@ if(NOT TARGET nvtx3::nvtx3-cpp)
   rapids_cpm_nvtx3(BUILD_EXPORT_SET rtcx-exports INSTALL_EXPORT_SET rtcx-exports)
 endif()
 
-add_library(rtcx STATIC hash.cpp rtcx.cpp AlgorithmLauncher.cpp AlgorithmPlanner.cpp
-                        FragmentEntry.cpp nvjitlink_checker.cpp NVRTCLTOFragmentCompiler.cpp)
+add_library(rtcx STATIC hash.cpp rtcx.cpp algorithm_launcher.cpp algorithm_planner.cpp
+                        fragment_entry.cpp nvjitlink_checker.cpp nvrtc_lto_fragment_compiler.cpp)
 add_library(rtcx::rtcx ALIAS rtcx)
 
 set_target_properties(rtcx
@@ -146,8 +146,9 @@ if(RTCX_INSTALL)
   install(FILES rtcx.hpp hash.hpp embed.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rtcx)
   install(FILES embed.cmake DESTINATION ${lib_dir}/cmake/rtcx)
   install(DIRECTORY embed/ DESTINATION ${lib_dir}/cmake/rtcx/embed)
-  install(FILES AlgorithmLauncher.hpp AlgorithmPlanner.hpp FragmentEntry.hpp nvjitlink_checker.hpp
-                NVRTCLTOFragmentCompiler.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rtcx)
+  install(FILES algorithm_launcher.hpp algorithm_planner.hpp fragment_entry.hpp
+                nvjitlink_checker.hpp nvrtc_lto_fragment_compiler.hpp
+          DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rtcx)
   install(FILES generate_jit_lto_kernels.cmake compute_matrix_product.cmake
                 compute_matrix_product.py register_fatbin.cpp.in DESTINATION ${lib_dir}/cmake/rtcx)
   install(DIRECTORY libcxx/ DESTINATION ${CMAKE_INSTALL_DATADIR}/rtcx/libcxx)

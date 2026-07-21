@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include "AlgorithmLauncher.hpp"
-#include "FragmentEntry.hpp"
+#include "algorithm_launcher.hpp"
+#include "fragment_entry.hpp"
 
 #include <memory>
 #include <shared_mutex>
@@ -16,32 +16,34 @@
 #include <utility>
 #include <vector>
 
-struct LauncherJitCache {
+namespace rtcx {
+
+struct launcher_jit_cache {
   std::shared_mutex mutex;
-  std::unordered_map<std::string, std::shared_ptr<AlgorithmLauncher>> launchers;
+  std::unordered_map<std::string, std::shared_ptr<algorithm_launcher>> launchers;
 };
 
-struct AlgorithmPlanner {
-  AlgorithmPlanner(std::string entrypoint, LauncherJitCache& jit_cache)
+struct algorithm_planner {
+  algorithm_planner(std::string entrypoint, launcher_jit_cache& jit_cache)
     : entrypoint(std::move(entrypoint)), jit_cache_(jit_cache)
   {
   }
 
-  std::shared_ptr<AlgorithmLauncher> get_launcher();
+  std::shared_ptr<algorithm_launcher> get_launcher();
 
   std::string entrypoint;
-  std::vector<std::unique_ptr<FragmentEntry>> fragments;
+  std::vector<std::unique_ptr<fragment_entry>> fragments;
 
-  template <typename T, typename = std::enable_if_t<std::is_convertible_v<T*, FragmentEntry*>>>
+  template <typename T, typename = std::enable_if_t<std::is_convertible_v<T*, fragment_entry*>>>
   void add_fragment(std::unique_ptr<T> fragment)
   {
-    fragments.push_back(std::unique_ptr<FragmentEntry>(std::move(fragment)));
+    fragments.push_back(std::unique_ptr<fragment_entry>(std::move(fragment)));
   }
 
   template <typename FragmentTag>
   void add_static_fragment()
   {
-    add_fragment(std::make_unique<StaticFatbinFragmentEntry<FragmentTag>>());
+    add_fragment(std::make_unique<static_fatbin_fragment_entry<FragmentTag>>());
   }
 
  protected:
@@ -52,9 +54,11 @@ struct AlgorithmPlanner {
 
  private:
   std::string get_fragments_key() const;
-  std::shared_ptr<AlgorithmLauncher> build();
+  std::shared_ptr<algorithm_launcher> build();
 
-  std::shared_ptr<AlgorithmLauncher> read_cache(std::string const& launch_key) const;
+  std::shared_ptr<algorithm_launcher> read_cache(std::string const& launch_key) const;
 
-  LauncherJitCache& jit_cache_;
+  launcher_jit_cache& jit_cache_;
 };
+
+}  // namespace rtcx

@@ -13,20 +13,23 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 
-struct AlgorithmLauncher {
-  AlgorithmLauncher() : kernel{nullptr}, library{nullptr} {}
+namespace rtcx {
 
-  AlgorithmLauncher(cudaKernel_t k, cudaLibrary_t lib);
+struct algorithm_launcher {
+  algorithm_launcher() : kernel{nullptr}, library{nullptr} {}
 
-  ~AlgorithmLauncher();
+  algorithm_launcher(cudaKernel_t k, cudaLibrary_t lib);
 
-  AlgorithmLauncher(AlgorithmLauncher const&)            = delete;
-  AlgorithmLauncher& operator=(AlgorithmLauncher const&) = delete;
+  ~algorithm_launcher();
 
-  AlgorithmLauncher(AlgorithmLauncher&& other) noexcept;
-  AlgorithmLauncher& operator=(AlgorithmLauncher&& other) noexcept;
+  algorithm_launcher(algorithm_launcher const&)            = delete;
+  algorithm_launcher& operator=(algorithm_launcher const&) = delete;
+
+  algorithm_launcher(algorithm_launcher&& other) noexcept;
+  algorithm_launcher& operator=(algorithm_launcher&& other) noexcept;
 
   template <typename FuncT, typename... Args>
   void dispatch(cudaStream_t stream, dim3 grid, dim3 block, std::size_t shared_mem, Args&&... args)
@@ -59,3 +62,5 @@ struct AlgorithmLauncher {
   cudaKernel_t kernel;
   cudaLibrary_t library;
 };
+
+}  // namespace rtcx

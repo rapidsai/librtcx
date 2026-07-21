@@ -7,7 +7,7 @@
 #include "macros.hpp"
 #include "nvJitLink.h"
 
-#include <AlgorithmPlanner.hpp>
+#include <algorithm_planner.hpp>
 #include <nvjitlink_checker.hpp>
 
 #include <chrono>
@@ -19,7 +19,9 @@
 #include <string>
 #include <vector>
 
-std::string AlgorithmPlanner::get_fragments_key() const
+namespace rtcx {
+
+std::string algorithm_planner::get_fragments_key() const
 {
   std::string key = "";
   for (auto const& fragment : this->fragments) {
@@ -28,7 +30,8 @@ std::string AlgorithmPlanner::get_fragments_key() const
   return key;
 }
 
-std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::read_cache(std::string const& launch_key) const
+std::shared_ptr<algorithm_launcher> algorithm_planner::read_cache(
+  std::string const& launch_key) const
 {
   auto& launchers = jit_cache_.launchers;
   std::shared_lock<std::shared_mutex> read_lock(jit_cache_.mutex);
@@ -36,7 +39,7 @@ std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::read_cache(std::string cons
   return nullptr;
 }
 
-std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::get_launcher()
+std::shared_ptr<algorithm_launcher> algorithm_planner::get_launcher()
 {
   auto& launchers = jit_cache_.launchers;
   auto launch_key = this->get_fragments_key();
@@ -51,7 +54,7 @@ std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::get_launcher()
   return launcher;
 }
 
-std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::build()
+std::shared_ptr<algorithm_launcher> algorithm_planner::build()
 {
   int device = 0;
   int major  = 0;
@@ -103,5 +106,7 @@ std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::build()
   cudaKernel_t kernel;
   RTCX_CUDA_TRY(cudaLibraryGetKernel(&kernel, library, this->entrypoint.c_str()));
 
-  return std::make_shared<AlgorithmLauncher>(kernel, library);
+  return std::make_shared<algorithm_launcher>(kernel, library);
 }
+
+}  // namespace rtcx
