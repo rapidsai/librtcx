@@ -29,7 +29,11 @@ if(NOT TARGET zstd)
   rapids_cpm_find(zstd
                   1.5.7
                   GLOBAL_TARGETS
-                  zstd
+                  zstd::libzstd_static
+                  BUILD_EXPORT_SET
+                  rtcx-exports
+                  INSTALL_EXPORT_SET
+                  rtcx-exports
                   CPM_ARGS
                   GIT_REPOSITORY
                   https://github.com/facebook/zstd.git
@@ -59,7 +63,7 @@ endif()
 
 if(NOT TARGET nvtx3::nvtx3-cpp)
   include(${rapids-cmake-dir}/cpm/nvtx3.cmake)
-  rapids_cpm_nvtx3()
+  rapids_cpm_nvtx3(BUILD_EXPORT_SET rtcx-exports INSTALL_EXPORT_SET rtcx-exports)
 endif()
 
 add_library(rtcx STATIC hash.cpp rtcx.cpp AlgorithmLauncher.cpp AlgorithmPlanner.cpp
@@ -82,6 +86,7 @@ if(RTCX_STATIC_LINK_NVRTC)
   target_link_libraries(rtcx PRIVATE CUDA::nvrtc_static CUDA::nvrtc_builtins_static)
   target_compile_definitions(rtcx PRIVATE RTCX_STATIC_LINK_LIBNVRTC=1)
 else()
+  target_link_libraries(rtcx PRIVATE CUDA::nvrtc CUDA::nvrtc_builtins)
   target_compile_definitions(rtcx PRIVATE RTCX_STATIC_LINK_LIBNVRTC=0)
 endif()
 
@@ -89,6 +94,7 @@ if(RTCX_STATIC_LINK_NVJITLINK)
   target_link_libraries(rtcx PRIVATE CUDA::nvJitLink_static)
   target_compile_definitions(rtcx PRIVATE RTCX_STATIC_LINK_LIBNVJITLINK=1)
 else()
+  target_link_libraries(rtcx PRIVATE CUDA::nvJitLink)
   target_compile_definitions(rtcx PRIVATE RTCX_STATIC_LINK_LIBNVJITLINK=0)
 endif()
 
@@ -141,9 +147,9 @@ if(RTCX_INSTALL)
   install(FILES embed.cmake DESTINATION ${lib_dir}/cmake/rtcx)
   install(DIRECTORY embed/ DESTINATION ${lib_dir}/cmake/rtcx/embed)
   install(FILES AlgorithmLauncher.hpp AlgorithmPlanner.hpp FragmentEntry.hpp nvjitlink_checker.hpp
-                NVRTCLTOFRagmentCompiler.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rtcx)
-  install(FILES generate_jit_lto_kernels.cmake register_fatbin.cpp.in
-          DESTINATION ${lib_dir}/cmake/rtcx)
+                NVRTCLTOFragmentCompiler.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rtcx)
+  install(FILES generate_jit_lto_kernels.cmake compute_matrix_product.cmake
+                compute_matrix_product.py register_fatbin.cpp.in DESTINATION ${lib_dir}/cmake/rtcx)
   install(DIRECTORY libcxx/ DESTINATION ${CMAKE_INSTALL_DATADIR}/rtcx/libcxx)
 
   rapids_export(INSTALL rtcx EXPORT_SET rtcx-exports GLOBAL_TARGETS rtcx NAMESPACE rtcx::
