@@ -4,11 +4,11 @@
  */
 
 #include "cuda_runtime.h"
-#include "macros.hpp"
 #include "nvJitLink.h"
 
-#include <algorithm_planner.hpp>
-#include <nvjitlink_checker.hpp>
+#include <rtcx/algorithm_planner.hpp>
+#include <rtcx/macros.hpp>
+#include <rtcx/nvjitlink_checker.hpp>
 
 #include <chrono>
 #include <iterator>

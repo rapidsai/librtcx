@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "hash.hpp"
+#include <rtcx/hash.hpp>
 
 #include <array>
 #include <bit>

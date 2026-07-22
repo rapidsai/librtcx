@@ -125,10 +125,10 @@ function(rtcx_embed TARGET)
   file(GENERATE OUTPUT "${EMBED_SCRIPT}" INPUT "${CONFIGURED_EMBED_SCRIPT}")
 
   set(RUNNER "${TARGET}__jit_embed_run")
-  add_executable(${RUNNER} EXCLUDE_FROM_ALL "${EMBED_SCRIPT}"
-                                            ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../hash.cpp)
+  add_executable(${RUNNER} EXCLUDE_FROM_ALL
+                 "${EMBED_SCRIPT}" ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../../../src/hash.cpp)
   target_link_libraries(${RUNNER} PRIVATE ${CMAKE_DL_LIBS} xxhash zstd)
-  target_include_directories(${RUNNER} PRIVATE ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/..
+  target_include_directories(${RUNNER} PRIVATE ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../../../include
                                                ${ZSTD_INCLUDE_DIR})
   set_target_properties(${RUNNER} PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED YES)
 

@@ -3,9 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "macros.hpp"
-
-#include <algorithm_launcher.hpp>
+#include <rtcx/algorithm_launcher.hpp>
+#include <rtcx/macros.hpp>
 
 namespace rtcx {
 

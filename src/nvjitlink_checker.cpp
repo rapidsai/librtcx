@@ -3,10 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "macros.hpp"
-
 #include <nvJitLink.h>
-#include <nvjitlink_checker.hpp>
+#include <rtcx/macros.hpp>
+#include <rtcx/nvjitlink_checker.hpp>
 
 #include <memory>
 #include <string>

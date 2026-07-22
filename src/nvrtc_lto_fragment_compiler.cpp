@@ -4,10 +4,10 @@
  */
 
 #include "cuda.h"
-#include "macros.hpp"
 
 #include <nvrtc.h>
-#include <nvrtc_lto_fragment_compiler.hpp>
+#include <rtcx/macros.hpp>
+#include <rtcx/nvrtc_lto_fragment_compiler.hpp>
 
 #include <mutex>
 

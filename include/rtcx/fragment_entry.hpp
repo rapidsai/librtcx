@@ -5,9 +5,8 @@
 
 #pragma once
 
-#include "nvjitlink_checker.hpp"
-
 #include <nvJitLink.h>
+#include <rtcx/nvjitlink_checker.hpp>
 
 #include <cstddef>
 #include <cstdint>

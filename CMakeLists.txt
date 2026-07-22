@@ -66,8 +66,9 @@ if(NOT TARGET nvtx3::nvtx3-cpp)
   rapids_cpm_nvtx3(BUILD_EXPORT_SET rtcx-exports INSTALL_EXPORT_SET rtcx-exports)
 endif()
 
-add_library(rtcx STATIC hash.cpp rtcx.cpp algorithm_launcher.cpp algorithm_planner.cpp
-                        fragment_entry.cpp nvjitlink_checker.cpp nvrtc_lto_fragment_compiler.cpp)
+add_library(rtcx STATIC
+            src/hash.cpp src/rtcx.cpp src/algorithm_launcher.cpp src/algorithm_planner.cpp
+            src/fragment_entry.cpp src/nvjitlink_checker.cpp src/nvrtc_lto_fragment_compiler.cpp)
 add_library(rtcx::rtcx ALIAS rtcx)
 
 set_target_properties(rtcx
@@ -77,7 +78,7 @@ set_target_properties(rtcx
                                  VISIBILITY_INLINES_HIDDEN YES
                                  POSITION_INDEPENDENT_CODE ON)
 
-target_include_directories(rtcx PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+target_include_directories(rtcx PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                            PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
 
 target_link_libraries(rtcx PRIVATE zstd ${CMAKE_DL_LIBS} nvtx3::nvtx3-cpp)
@@ -122,8 +123,8 @@ set(rtcx_LIBCXX_DIR "${PACKAGE_PREFIX_DIR}/share/rtcx/libcxx")
 string(CONFIGURE [=[
 # Embed functions (add_embed, embed_includes, embed_blob, embed)
 # are included automatically so consumers don't need explicit include().
-include("@CMAKE_CURRENT_SOURCE_DIR@/embed.cmake")
-include("@CMAKE_CURRENT_SOURCE_DIR@/generate_jit_lto_kernels.cmake")
+include("@CMAKE_CURRENT_SOURCE_DIR@/cmake/modules/embed.cmake")
+include("@CMAKE_CURRENT_SOURCE_DIR@/cmake/modules/generate_jit_lto_kernels.cmake")
 
 # Set rtcx_LIBCXX_DIR for consumers using embed_includes with libcxx headers.
 set(rtcx_LIBCXX_DIR "@CMAKE_CURRENT_SOURCE_DIR@/libcxx")
@@ -143,14 +144,12 @@ install(TARGETS rtcx
         ${rtcx_exclude_from_install})
 
 if(RTCX_INSTALL)
-  install(FILES rtcx.hpp hash.hpp embed.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rtcx)
-  install(FILES embed.cmake DESTINATION ${lib_dir}/cmake/rtcx)
-  install(DIRECTORY embed/ DESTINATION ${lib_dir}/cmake/rtcx/embed)
-  install(FILES algorithm_launcher.hpp algorithm_planner.hpp fragment_entry.hpp
-                nvjitlink_checker.hpp nvrtc_lto_fragment_compiler.hpp
-          DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rtcx)
-  install(FILES generate_jit_lto_kernels.cmake compute_matrix_product.cmake
-                compute_matrix_product.py register_fatbin.cpp.in DESTINATION ${lib_dir}/cmake/rtcx)
+  install(DIRECTORY include/rtcx DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+  install(FILES cmake/modules/embed.cmake DESTINATION ${lib_dir}/cmake/rtcx)
+  install(DIRECTORY cmake/modules/embed/ DESTINATION ${lib_dir}/cmake/rtcx/embed)
+  install(FILES cmake/modules/generate_jit_lto_kernels.cmake
+                cmake/modules/compute_matrix_product.cmake cmake/modules/compute_matrix_product.py
+                cmake/modules/register_fatbin.cpp.in DESTINATION ${lib_dir}/cmake/rtcx)
   install(DIRECTORY libcxx/ DESTINATION ${CMAKE_INSTALL_DATADIR}/rtcx/libcxx)
 
   rapids_export(INSTALL rtcx EXPORT_SET rtcx-exports GLOBAL_TARGETS rtcx NAMESPACE rtcx::
