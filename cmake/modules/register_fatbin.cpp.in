@@ -4,7 +4,7 @@
  */
 
 #include "@fatbin_header_file@"
-#include <fragment_entry.hpp>
+#include <rtcx/fragment_entry.hpp>
 
 @fragment_tag_header_files@
 
