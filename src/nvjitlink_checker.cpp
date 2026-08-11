@@ -11,6 +11,7 @@
 #include <string>
 
 namespace rtcx {
+
 void check_nvjitlink_result(nvJitLinkHandle handle, nvJitLinkResult result)
 {
   if (result != NVJITLINK_SUCCESS) {
@@ -25,3 +26,5 @@ void check_nvjitlink_result(nvJitLinkHandle handle, nvJitLinkResult result)
     RTCX_FAIL("AlgorithmPlanner nvJITLink error log: %s", error_msg.c_str());
   }
 }
+
+}  // namespace rtcx
