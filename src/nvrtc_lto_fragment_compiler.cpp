@@ -4,10 +4,10 @@
  */
 
 #include "cuda.h"
-#include "macros.hpp"
 
-#include <NVRTCLTOFragmentCompiler.hpp>
 #include <nvrtc.h>
+#include <rtcx/macros.hpp>
+#include <rtcx/nvrtc_lto_fragment_compiler.hpp>
 
 #include <mutex>
 
@@ -19,7 +19,9 @@
     RTCX_EXPECTS(result == NVRTC_SUCCESS, "%s", error_string.c_str());         \
   }
 
-NVRTCLTOFragmentCompiler::NVRTCLTOFragmentCompiler()
+namespace rtcx {
+
+nvrtc_lto_fragment_compiler::nvrtc_lto_fragment_compiler()
 {
   int device = 0;
   int major  = 0;
@@ -37,24 +39,24 @@ NVRTCLTOFragmentCompiler::NVRTCLTOFragmentCompiler()
   };
 }
 
-std::unique_ptr<UDFFatbinFragment> NVRTCLTOFragmentCompiler::read_cache(
+std::unique_ptr<udf_fatbin_fragment> nvrtc_lto_fragment_compiler::read_cache(
   std::string const& key) const
 {
   std::shared_lock<std::shared_mutex> read_lock(cache_mutex_);
   if (auto it = cache.find(key); it != cache.end()) {
-    return std::make_unique<UDFFatbinFragment>(key, it->second);
+    return std::make_unique<udf_fatbin_fragment>(key, it->second);
   }
   return nullptr;
 }
 
-std::unique_ptr<UDFFatbinFragment> NVRTCLTOFragmentCompiler::compile(std::string const& key,
-                                                                     std::string const& code)
+std::unique_ptr<udf_fatbin_fragment> nvrtc_lto_fragment_compiler::compile(std::string const& key,
+                                                                          std::string const& code)
 {
   if (auto hit = read_cache(key)) { return hit; }
 
   std::unique_lock<std::shared_mutex> write_lock(cache_mutex_);
   if (auto it = cache.find(key); it != cache.end()) {
-    return std::make_unique<UDFFatbinFragment>(key, it->second);
+    return std::make_unique<udf_fatbin_fragment>(key, it->second);
   }
 
   nvrtcProgram prog;
@@ -96,11 +98,13 @@ std::unique_ptr<UDFFatbinFragment> NVRTCLTOFragmentCompiler::compile(std::string
   NVRTC_SAFE_CALL(nvrtcDestroyProgram(&prog));
 
   cache[key] = std::move(lto_ir);
-  return std::make_unique<UDFFatbinFragment>(key, cache[key]);
+  return std::make_unique<udf_fatbin_fragment>(key, cache[key]);
 }
 
-NVRTCLTOFragmentCompiler& nvrtc_compiler()
+nvrtc_lto_fragment_compiler& nvrtc_compiler()
 {
-  static NVRTCLTOFragmentCompiler compiler;
+  static nvrtc_lto_fragment_compiler compiler;
   return compiler;
 }
+
+}  // namespace rtcx

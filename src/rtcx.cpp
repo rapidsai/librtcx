@@ -11,7 +11,7 @@
 #include <fcntl.h>
 #include <nvJitLink.h>
 #include <nvrtc.h>
-#include <rtcx.hpp>
+#include <rtcx/rtcx.hpp>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>

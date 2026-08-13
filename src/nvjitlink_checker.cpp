@@ -3,13 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "macros.hpp"
-
 #include <nvJitLink.h>
-#include <nvjitlink_checker.hpp>
+#include <rtcx/macros.hpp>
+#include <rtcx/nvjitlink_checker.hpp>
 
 #include <memory>
 #include <string>
+
+namespace rtcx {
 
 void check_nvjitlink_result(nvJitLinkHandle handle, nvJitLinkResult result)
 {
@@ -25,3 +26,5 @@ void check_nvjitlink_result(nvJitLinkHandle handle, nvJitLinkResult result)
     RTCX_FAIL("AlgorithmPlanner nvJITLink error log: %s", error_msg.c_str());
   }
 }
+
+}  // namespace rtcx
