@@ -22,8 +22,8 @@ EXTRACT_STATIC          = NO
 HIDE_UNDOC_MEMBERS      = NO
 HIDE_UNDOC_CLASSES      = NO
 
-INPUT                   = ..
-FILE_PATTERNS           = *.hpp README.md
+INPUT                   = ../include/rtcx ../README.md
+FILE_PATTERNS           = *.hpp *.md
 RECURSIVE               = NO
 USE_MDFILE_AS_MAINPAGE  = ../README.md
 

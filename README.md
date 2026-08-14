@@ -125,6 +125,14 @@ int main() {
   };
   char const *options[] = {"-lto", "-arch=sm_80"};
 
+  // Both directories must exist, be writable, and be on the same filesystem.
+  std::filesystem::create_directories("/tmp/rtcx-cache/objects");
+  std::filesystem::create_directories("/tmp/rtcx-cache/staging");
+  rtcx::cache_t cache{"/tmp/rtcx-cache/objects", "/tmp/rtcx-cache/staging",
+                      rtcx::cache_limits{},
+                      /* preload = */ false,
+                      /* disable = */ false};
+
   auto link = [&]() -> std::tuple<rtcx::library, rtcx::blob> {
     auto binary = std::make_shared<rtcx::blob_t>(
         rtcx::blob_t::from_buffer(rtcx::link_library({
@@ -136,10 +144,14 @@ int main() {
     return {rtcx::load_library(binary->view()), binary};
   };
 
-  return cache
-      .get_or_add_library(make_cache_key(kernel_lto_ir, udf_lto_ir, options),
-                          rtcx::library_compile_func::from_functor(link))
-      .get();
+  auto library =
+      cache
+          .get_or_add_library(
+              make_cache_key(kernel_lto_ir, udf_lto_ir, options),
+              rtcx::library_compile_func::from_functor(link))
+          .get();
+
+  return 0;
 }
 ```
 
@@ -174,7 +186,7 @@ target_include_directories(sample PRIVATE "${sample_embed_INCLUDE_DIRS}")
 target_link_libraries(sample PRIVATE rtcx::rtcx)
 ```
 
-The generated header describes the files and virtual paths. 
+The generated header describes the files and virtual paths.
 Pass pointers into the embedded data to NVRTC:
 
 ```cpp
@@ -239,7 +251,3 @@ auto library =
     rtcx::load_library({sample_embed::files.data() + range[0], range[1]});
 auto kernel = library->get_kernel("sample_kernel");
 ```
-
-## License
-
-Licensed under the Apache License 2.0. See [LICENSE](LICENSE).

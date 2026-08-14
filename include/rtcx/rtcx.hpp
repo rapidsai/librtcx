@@ -24,7 +24,7 @@
 
 #define RTCX_DEFER__CONCATENATE_DETAIL(x, y) x##y
 #define RTCX_DEFER__CONCATENATE(x, y)        RTCX_DEFER__CONCATENATE_DETAIL(x, y)
-#define RTCX_DEFER(...) ::rtcx::defer RTCX_DEFER__CONCATENATE(defer_, __COUNTER__)(__VA_ARGS__)
+#define RTCX_DEFER(...)                      ::rtcx::defer RTCX_DEFER__CONCATENATE(defer_, __COUNTER__)(__VA_ARGS__)
 
 extern "C" {
 typedef struct CUlib_st* CUlibrary;    // NOLINT(modernize-use-using)
@@ -358,7 +358,9 @@ struct [[nodiscard]] blob_t {
    * deallocator
    */
   static blob_t from_parts(std::uint8_t const* data, std::size_t size, deallocator deallocator)
-  { return blob_t{data, size, deallocator}; }
+  {
+    return blob_t{data, size, deallocator};
+  }
 
   /**
    * @brief Creates a blob_t object from a byte buffer, taking ownership of the buffer's data.
@@ -559,12 +561,12 @@ struct [[nodiscard]] link_params {
 inline namespace detail {
 
 /**
- * @brief A thread-safe, least-recently-used (LRU) memory cache for storing key-value pairs.
+ * @brief A least-recently-used (LRU) memory cache for storing key-value pairs.
  * @tparam T The type of the values to be stored in the cache.
  * @details This cache uses an unordered_map to store entries and maintains a last-touched
  * timestamp for each entry to implement the LRU eviction policy. When the number of entries
  * exceeds the specified limit, the least recently used half of the entries are purged from
- * the cache.
+ * the cache. This type does not provide internal synchronization; callers must serialize access.
  */
 template <typename T>
 struct alignas(CACHELINE_ALIGNMENT) lru_memory_cache {
@@ -690,8 +692,8 @@ using library_compile_func = func<std::tuple<library, blob>()>;
  *
  * @details Provides in-memory and on-disk caching of compiled RTC artifacts.
  * The cache uses an LRU eviction policy when the number of cached items exceeds user-defined
- * limits. In-memory cache is implemented using a thread-safe LRU cache that supports concurrent
- * reads. The on-disk cache also allows concurrent access and stores cached items in files within a
+ * limits. cache_t serializes access to its in-memory LRU caches. The on-disk cache also allows
+ * concurrent access and stores cached items in files within a
  * specified directory. Writing to disk is atomic to prevent corruption from concurrent writes or
  * process interruptions. In addition, the cache maintains statistics on cache hits and misses for
  * both in-memory and on-disk caches to help monitor cache performance in benchmarking and
@@ -945,7 +947,9 @@ std::string reflect(T value) = delete;
  */
 template <>
 inline std::string reflect<bool>(bool value)
-{ return std::format("{}", value); }
+{
+  return std::format("{}", value);
+}
 
 /**
  * @brief Reflect an integer value into its CUDA string representation
@@ -954,7 +958,9 @@ inline std::string reflect<bool>(bool value)
  */
 template <>
 inline std::string reflect<std::uint8_t>(std::uint8_t value)
-{ return std::format("{}U", value); }
+{
+  return std::format("{}U", value);
+}
 
 /**
  * @brief Reflect an integer value into its CUDA string representation
@@ -963,7 +969,9 @@ inline std::string reflect<std::uint8_t>(std::uint8_t value)
  */
 template <>
 inline std::string reflect<std::uint16_t>(std::uint16_t value)
-{ return std::format("{}U", value); }
+{
+  return std::format("{}U", value);
+}
 
 /**
  * @brief Reflect an integer value into its CUDA string representation
@@ -972,7 +980,9 @@ inline std::string reflect<std::uint16_t>(std::uint16_t value)
  */
 template <>
 inline std::string reflect<std::uint32_t>(std::uint32_t value)
-{ return std::format("{}U", value); }
+{
+  return std::format("{}U", value);
+}
 
 /**
  * @brief Reflect an integer value into its CUDA string representation
@@ -981,7 +991,9 @@ inline std::string reflect<std::uint32_t>(std::uint32_t value)
  */
 template <>
 inline std::string reflect<std::uint64_t>(std::uint64_t value)
-{ return std::format("{}ULL", value); }
+{
+  return std::format("{}ULL", value);
+}
 
 /**
  * @brief Reflect an integer value into its CUDA string representation
@@ -990,7 +1002,9 @@ inline std::string reflect<std::uint64_t>(std::uint64_t value)
  */
 template <>
 inline std::string reflect<std::int8_t>(std::int8_t value)
-{ return std::format("{}", value); }
+{
+  return std::format("{}", value);
+}
 
 /**
  * @brief Reflect an integer value into its CUDA string representation
@@ -999,7 +1013,9 @@ inline std::string reflect<std::int8_t>(std::int8_t value)
  */
 template <>
 inline std::string reflect<std::int16_t>(std::int16_t value)
-{ return std::format("{}", value); }
+{
+  return std::format("{}", value);
+}
 
 /**
  * @brief Reflect an integer value into its CUDA string representation
@@ -1008,7 +1024,9 @@ inline std::string reflect<std::int16_t>(std::int16_t value)
  */
 template <>
 inline std::string reflect<std::int32_t>(std::int32_t value)
-{ return std::format("{}", value); }
+{
+  return std::format("{}", value);
+}
 
 /**
  * @brief Reflect an integer value into its CUDA string representation
@@ -1017,7 +1035,9 @@ inline std::string reflect<std::int32_t>(std::int32_t value)
  */
 template <>
 inline std::string reflect<std::int64_t>(std::int64_t value)
-{ return std::format("{}LL", value); }
+{
+  return std::format("{}LL", value);
+}
 
 /**
  * @brief Reflect a floating-point value into its CUDA string representation
@@ -1026,7 +1046,9 @@ inline std::string reflect<std::int64_t>(std::int64_t value)
  */
 template <>
 inline std::string reflect<float>(float value)
-{ return std::format("{}F", value); }
+{
+  return std::format("{}F", value);
+}
 
 /**
  * @brief Reflect a floating-point value into its CUDA string representation
@@ -1035,7 +1057,9 @@ inline std::string reflect<float>(float value)
  */
 template <>
 inline std::string reflect<double>(double value)
-{ return std::format("{}", value); }
+{
+  return std::format("{}", value);
+}
 
 /**
  * @brief Reflect an enumeration value into its CUDA string representation, given the type name as a
@@ -1050,7 +1074,9 @@ inline std::string reflect<double>(double value)
 template <typename T>
   requires(std::is_enum_v<T>)
 std::string reflect_enum(std::string_view type, T value)
-{ return std::format("{}{}{}{}", type, "{", static_cast<std::underlying_type_t<T>>(value), "}"); }
+{
+  return std::format("{}{}{}{}", type, "{", static_cast<std::underlying_type_t<T>>(value), "}");
+}
 
 /**
  * @brief Reflect a template instantiation into its CUDA string representation, given the template

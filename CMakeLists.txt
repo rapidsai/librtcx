@@ -164,7 +164,7 @@ rapids_export(BUILD rtcx EXPORT_SET rtcx-exports GLOBAL_TARGETS rtcx NAMESPACE r
 # Documentation
 # =============================================================================
 set(rtcx_docs_output_dir "${CMAKE_CURRENT_BINARY_DIR}/docs")
-file(GLOB rtcx_doxygen_headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
+file(GLOB rtcx_doxygen_headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include/rtcx/*.hpp")
 set(rtcx_doxygen_inputs "${CMAKE_CURRENT_SOURCE_DIR}/README.md" ${rtcx_doxygen_headers})
 
 find_program(rtcx_doxygen_executable NAMES doxygen)

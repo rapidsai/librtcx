@@ -28,7 +28,9 @@ struct [[nodiscard]] hash128_hex_string {
    * @return A string view representing the hash128_hex_string.
    */
   [[nodiscard]] constexpr std::string_view view() const
-  { return std::string_view{data_, NUM_HEX_DIGITS}; }
+  {
+    return std::string_view{data_, NUM_HEX_DIGITS};
+  }
 
   /**
    * @brief Implicit conversion operator to std::string_view.
@@ -72,8 +74,6 @@ struct [[nodiscard]] hash128_hex_string {
 
 /**
  * @brief A 128-bit hash represented as a 128-bit unsigned integer.
- * @param value The 128-bit unsigned integer representing the hash.
- * @return A hash128 object representing the hash.
  */
 struct hash128 {
   __uint128_t value;  ///< The 128-bit unsigned integer representing the hash
