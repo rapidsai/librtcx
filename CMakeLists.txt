@@ -87,7 +87,7 @@ if(RTCX_STATIC_LINK_NVRTC)
   target_link_libraries(rtcx PRIVATE CUDA::nvrtc_static CUDA::nvrtc_builtins_static)
   target_compile_definitions(rtcx PRIVATE RTCX_STATIC_LINK_LIBNVRTC=1)
 else()
-  target_link_libraries(rtcx PRIVATE CUDA::nvrtc CUDA::nvrtc_builtins)
+  target_link_libraries(rtcx PRIVATE CUDA::nvrtc)
   target_compile_definitions(rtcx PRIVATE RTCX_STATIC_LINK_LIBNVRTC=0)
 endif()
 
