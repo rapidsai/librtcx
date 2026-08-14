@@ -4,9 +4,8 @@
  */
 
 #pragma once
-#include "hash.hpp"
-
 #include <fcntl.h>
+#include <rtcx/hash.hpp>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -37,7 +36,7 @@
     }                                                                                  \
   } while (false)
 
-namespace rtcx_embed {
+namespace rtcx::embed {
 
 struct size_range {
   size_t offset = 0;
@@ -407,4 +406,4 @@ std::vector<std::string_view> split_string(std::string_view str, char delimiter)
   return tokens;
 }
 
-}  // namespace rtcx_embed
+}  // namespace rtcx::embed

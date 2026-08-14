@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <hash.hpp>
+#include <rtcx/hash.hpp>
 
 #include <algorithm>
 #include <atomic>

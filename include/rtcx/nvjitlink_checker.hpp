@@ -7,5 +7,7 @@
 
 #include <nvJitLink.h>
 
+namespace rtcx {
 // We can make a better RAII wrapper around nvjitlinkhandle
 void check_nvjitlink_result(nvJitLinkHandle handle, nvJitLinkResult result);
+}  // namespace rtcx
