@@ -25,8 +25,7 @@ when this file is included.
 
 .. note::
 
-  The ``zstd`` and ``xxhash`` CMake targets must be available before calling
-  ``rtcx_embed``.
+  ``rtcx`` provides the ``zstd`` and ``xxhash`` targets used by ``rtcx_embed``.
 
 #]=======================================================================]
 

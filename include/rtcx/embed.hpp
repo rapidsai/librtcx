@@ -201,6 +201,7 @@ std::string generate_arrays(std::span<std::string_view const> array_ids,
 }
 
 embed_output generate_cxx_source_files_data(std::string_view id,
+                                            std::string_view binary_file_path,
                                             std::span<std::string_view const> array_ids,
                                             std::span<std::string_view const> array_values,
                                             std::span<std::string_view const> file_ids,
@@ -349,11 +350,12 @@ constexpr std::uint8_t hash[{}] =
 .section .rodata
 .global {0}_files_begin
 {0}_files_begin:
-.incbin "{0}.bin"
+.incbin "{1}"
 
 .section .note.GNU-stack,"",@progbits
 )***",
-    id);
+    id,
+    binary_file_path);
 
   return embed_output{
     .cxx_header    = cxx_header,
@@ -371,10 +373,18 @@ void generate_embed(std::string_view id,
                     std::string_view compression,
                     std::string_view output_directory)
 {
-  auto output = generate_cxx_source_files_data(
-    id, array_ids, array_values, file_ids, file_paths, file_dsts, include_dirs, compression);
-
   std::filesystem::create_directories(std::filesystem::path(output_directory));
+  auto binary_file_path =
+    std::filesystem::absolute(std::filesystem::path(output_directory) / std::format("{}.bin", id));
+  auto output = generate_cxx_source_files_data(id,
+                                                binary_file_path.string(),
+                                                array_ids,
+                                                array_values,
+                                                file_ids,
+                                                file_paths,
+                                                file_dsts,
+                                                include_dirs,
+                                                compression);
 
   std::ofstream header_file(std::format("{}/{}.hpp", output_directory, id));
   header_file << output.cxx_header;

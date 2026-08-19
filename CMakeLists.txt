@@ -61,6 +61,26 @@ if(NOT TARGET zstd)
   endif()
 endif()
 
+if(NOT TARGET xxhash)
+  set(CPM_DOWNLOAD_xxhash ON)
+  rapids_cpm_find(xxhash
+                  0.8.3
+                  GLOBAL_TARGETS
+                  xxhash
+                  CPM_ARGS
+                  GIT_REPOSITORY
+                  https://github.com/Cyan4973/xxHash.git
+                  GIT_TAG
+                  v0.8.3
+                  GIT_SHALLOW
+                  FALSE
+                  SOURCE_SUBDIR
+                  cmake_unofficial
+                  OPTIONS
+                  "BUILD_SHARED_LIBS OFF"
+                  "XXHASH_BUILD_XXHSUM OFF")
+endif()
+
 if(NOT TARGET nvtx3::nvtx3-cpp)
   include(${rapids-cmake-dir}/cpm/nvtx3.cmake)
   rapids_cpm_nvtx3(BUILD_EXPORT_SET rtcx-exports INSTALL_EXPORT_SET rtcx-exports)
@@ -149,7 +169,7 @@ if(RTCX_INSTALL)
   install(DIRECTORY cmake/modules/embed/ DESTINATION ${lib_dir}/cmake/rtcx/embed)
   install(FILES cmake/modules/generate_jit_lto_kernels.cmake
                 cmake/modules/compute_matrix_product.cmake cmake/modules/compute_matrix_product.py
-                cmake/modules/register_fatbin.cpp.in DESTINATION ${lib_dir}/cmake/rtcx)
+                cmake/modules/register_embedded_fatbins.cpp.in DESTINATION ${lib_dir}/cmake/rtcx)
   install(DIRECTORY libcxx/ DESTINATION ${CMAKE_INSTALL_DATADIR}/rtcx/libcxx)
 
   rapids_export(INSTALL rtcx EXPORT_SET rtcx-exports GLOBAL_TARGETS rtcx NAMESPACE rtcx::
