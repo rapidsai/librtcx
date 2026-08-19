@@ -9,8 +9,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#define XXH_INLINE_ALL
-#include <xxhash.h>
 #include <zstd.h>
 
 #include <cstdint>
@@ -99,22 +97,6 @@ std::vector<uint8_t> compress_bytes(std::span<uint8_t const> bytes, std::string_
 
   compressed.resize(compressed_size);
   return compressed;
-}
-
-rtcx::hash128 compute_embed_hash(std::span<uint8_t const> uncompressed_files_bytes,
-                                 std::span<uint8_t const> merged_dests_bytes,
-                                 std::span<uint8_t const> merged_include_dirs_bytes,
-                                 std::string_view compression)
-{
-  XXH3_state_t state;
-  XXH3_INITSTATE(&state);
-  XXH3_128bits_reset(&state);
-  XXH3_128bits_update(&state, uncompressed_files_bytes.data(), uncompressed_files_bytes.size());
-  XXH3_128bits_update(&state, merged_dests_bytes.data(), merged_dests_bytes.size());
-  XXH3_128bits_update(&state, merged_include_dirs_bytes.data(), merged_include_dirs_bytes.size());
-  XXH3_128bits_update(&state, compression.data(), compression.size());
-  auto hash = XXH3_128bits_digest(&state);
-  return rtcx::hash128{hash.high64, hash.low64};
 }
 
 template <typename Container, typename Formatter>
@@ -235,23 +217,6 @@ embed_output generate_cxx_source_files_data(std::string_view id,
         static_cast<double>(uncompressed_files_bytes.size()));
   }
 
-  std::vector<std::vector<uint8_t>> destination_bytes;
-  destination_bytes.reserve(file_dsts.size());
-  for (auto const& dest : file_dsts) {
-    destination_bytes.emplace_back(dest.begin(), dest.end());
-  }
-  auto [merged_dests_bytes, _] = merge_bytes_with_null_terminators(destination_bytes);
-
-  std::vector<std::vector<uint8_t>> include_directory_bytes;
-  include_directory_bytes.reserve(include_dirs.size());
-  for (auto const& include_directory : include_dirs) {
-    include_directory_bytes.emplace_back(include_directory.begin(), include_directory.end());
-  }
-  auto [merged_include_dirs_bytes, __] = merge_bytes_with_null_terminators(include_directory_bytes);
-
-  auto hash = compute_embed_hash(
-    uncompressed_files_bytes, merged_dests_bytes, merged_include_dirs_bytes, compression);
-
   auto include_dirs_list =
     join_formatted(include_dirs, ",\n", [](auto s) { return std::format("\"{}\"", s); });
   auto file_dests_list =
@@ -265,8 +230,6 @@ embed_output generate_cxx_source_files_data(std::string_view id,
   });
   auto file_ranges_list  = join_formatted(
     file_ranges, ",\n", [](auto r) { return std::format("{{{}, {}}}", r.offset, r.size); });
-  auto hash_list = join_formatted(
-    hash, ", ", [](uint8_t byte) { return std::format("0x{:02x}", static_cast<unsigned>(byte)); });
   auto arrays_list    = generate_arrays(array_ids, array_values);
   auto namespace_decl = "namespace " + std::string(id);
 
@@ -317,11 +280,6 @@ static std::span<std::uint8_t const> const files =
 {}L
 }};
 
-constexpr std::uint8_t hash[{}] =
-{{
-{}
-}};
-
 {}
 
 }}
@@ -341,8 +299,6 @@ constexpr std::uint8_t hash[{}] =
     id,
     id,
     binary_size,
-    hash.size(),
-    hash_list,
     arrays_list);
 
   auto asm_source = std::format(

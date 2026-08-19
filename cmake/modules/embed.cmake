@@ -25,7 +25,7 @@ when this file is included.
 
 .. note::
 
-  ``rtcx`` provides the ``zstd`` and ``xxhash`` targets used by ``rtcx_embed``.
+  ``rtcx`` provides the ``zstd`` target used by ``rtcx_embed``.
 
 #]=======================================================================]
 

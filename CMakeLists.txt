@@ -61,26 +61,6 @@ if(NOT TARGET zstd)
   endif()
 endif()
 
-if(NOT TARGET xxhash)
-  set(CPM_DOWNLOAD_xxhash ON)
-  rapids_cpm_find(xxhash
-                  0.8.3
-                  GLOBAL_TARGETS
-                  xxhash
-                  CPM_ARGS
-                  GIT_REPOSITORY
-                  https://github.com/Cyan4973/xxHash.git
-                  GIT_TAG
-                  v0.8.3
-                  GIT_SHALLOW
-                  FALSE
-                  SOURCE_SUBDIR
-                  cmake_unofficial
-                  OPTIONS
-                  "BUILD_SHARED_LIBS OFF"
-                  "XXHASH_BUILD_XXHSUM OFF")
-endif()
-
 if(NOT TARGET nvtx3::nvtx3-cpp)
   include(${rapids-cmake-dir}/cpm/nvtx3.cmake)
   rapids_cpm_nvtx3(BUILD_EXPORT_SET rtcx-exports INSTALL_EXPORT_SET rtcx-exports)
