@@ -159,3 +159,33 @@ endif()
 # Build-tree export (always, so CPM consumers can find_package from the build tree)
 rapids_export(BUILD rtcx EXPORT_SET rtcx-exports GLOBAL_TARGETS rtcx NAMESPACE rtcx::
               FINAL_CODE_BLOCK rtcx_build_code_string)
+
+# =============================================================================
+# Documentation
+# =============================================================================
+set(rtcx_docs_output_dir "${CMAKE_CURRENT_BINARY_DIR}/docs")
+file(GLOB rtcx_doxygen_headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include/rtcx/*.hpp")
+set(rtcx_doxygen_inputs "${CMAKE_CURRENT_SOURCE_DIR}/README.md" ${rtcx_doxygen_headers})
+
+find_program(rtcx_doxygen_executable NAMES doxygen)
+if(rtcx_doxygen_executable)
+  add_custom_command(OUTPUT "${rtcx_docs_output_dir}/doxygen.stamp"
+                     BYPRODUCTS "${rtcx_docs_output_dir}/html/index.html"
+                     COMMAND "${CMAKE_COMMAND}" -E make_directory "${rtcx_docs_output_dir}"
+                     COMMAND "${CMAKE_COMMAND}" -E env
+                             "DOXYGEN_EXECUTABLE=${rtcx_doxygen_executable}"
+                             "${CMAKE_CURRENT_SOURCE_DIR}/ci/checks/doxygen.sh"
+                             "${rtcx_docs_output_dir}"
+                     COMMAND "${CMAKE_COMMAND}" -E touch "${rtcx_docs_output_dir}/doxygen.stamp"
+                     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/docs/Doxyfile"
+                             "${CMAKE_CURRENT_SOURCE_DIR}/ci/checks/doxygen.sh"
+                             ${rtcx_doxygen_inputs}
+                     COMMENT "Building librtcx C++ API documentation"
+                     VERBATIM)
+  add_custom_target(rtcx_docs DEPENDS "${rtcx_docs_output_dir}/doxygen.stamp"
+                    COMMENT "Building librtcx C++ API documentation")
+else()
+  add_custom_target(rtcx_docs COMMAND "${CMAKE_COMMAND}" -E echo
+                                      "Doxygen is required to build rtcx_docs"
+                    COMMAND "${CMAKE_COMMAND}" -E false COMMENT "Doxygen is unavailable")
+endif()

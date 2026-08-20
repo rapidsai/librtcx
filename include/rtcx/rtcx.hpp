@@ -43,7 +43,7 @@ inline constexpr std::size_t CACHELINE_ALIGNMENT =
 template <typename T>
 struct defer {
  private:
-  T func_;
+  T func_;  ///< The callable to be executed at the end of the scope
 
  public:
   template <typename... Args>
@@ -70,12 +70,21 @@ struct func;
 template <typename R, typename... Args>
 struct [[nodiscard]] func<R(Args...)> {
  private:
-  void* _user_data;
-  R (*_thunk)(void*, Args...);
+  void* _user_data;             ///< Pointer to user data associated with the callable entity
+  R (*_thunk)(void*, Args...);  ///< Function pointer to the thunk that invokes the callable entity
 
  public:
+  /**
+   * @brief Constructs a func object from user data and a thunk function pointer.
+   * @param user_data Pointer to user data associated with the callable entity
+   * @param thunk Function pointer to the thunk that invokes the callable entity
+   */
   func(void* user_data, R (*thunk)(void*, Args...)) : _user_data{user_data}, _thunk{thunk} {}
 
+  /**
+   * @brief Constructs a func object from a function pointer.
+   * @param func_ptr Function pointer to the callable entity
+   */
   func(R (*func_ptr)(Args...))
     : _user_data{reinterpret_cast<void*>(func_ptr)},
       _thunk{+[](void* user_data, Args... args) -> R {
@@ -85,8 +94,16 @@ struct [[nodiscard]] func<R(Args...)> {
   {
   }
 
+  /**
+   * @brief Invokes the callable entity with the given arguments.
+   * @param args Arguments to be passed to the callable entity
+   */
   R operator()(Args... args) const { return _thunk(_user_data, std::forward<Args>(args)...); }
 
+  /**
+   * @brief Creates a func object from a lambda or other callable entity.
+   * @param lambda Lambda or other callable entity to be wrapped in a func object
+   */
   template <typename Lambda>
   static func from_functor(Lambda& lambda)
   {
@@ -104,7 +121,16 @@ func(void*, R (*)(void*, Args...)) -> func<R(Args...)>;
 template <typename R, typename... Args>
 func(R (*)(Args...)) -> func<R(Args...)>;
 
+/**
+ * @brief A hasher functor for hash128 object, which allows hash128 to be used as a key in unordered
+ * containers.
+ */
 struct [[nodiscard]] hash128_hasher {
+  /**
+   * @brief Computes the hash value for a given hash128 object.
+   * @param obj The hash128 object for which to compute the hash value.
+   * @return The computed hash value as a std::size_t.
+   */
   constexpr std::uint64_t operator()(hash128 const& obj) const
   {
     // use only the lower 64 bits of the hash for the hash table
@@ -112,6 +138,11 @@ struct [[nodiscard]] hash128_hasher {
   }
 };
 
+/**
+ * @brief The binary type of a compiled artifact, such as a kernel or library. This enum is used to
+ * specify the type of binary data being handled, which can affect how the data is processed or
+ * executed.
+ */
 enum class binary_type : std::int8_t { LTO_IR = 0, CUBIN = 2, FATBIN = 3, PTX = 4 };
 
 /**
@@ -123,9 +154,14 @@ template <typename T>
            std::is_trivially_destructible_v<T>)
 struct buffer {
  private:
-  T* _data;
-  std::size_t _size;
+  T* _data;           ///< Pointer to the buffer's data
+  std::size_t _size;  ///< Size of the buffer in number of elements
 
+  /**
+   * @brief Private constructor used internally to create a buffer with the given data and size.
+   * @param data Pointer to the buffer's data
+   * @param size Size of the buffer in number of elements
+   */
   buffer(T* data, std::size_t size) : _data(data), _size(size) {}
 
  public:
@@ -139,7 +175,7 @@ struct buffer {
     return buffer{data, size};
   }
 
-  buffer() : buffer{nullptr, 0} {}  //< Default constructor. Creates an empty buffer
+  buffer() : buffer{nullptr, 0} {}  ///< Default constructor. Creates an empty buffer
 
   buffer(buffer const&) = delete;
 
@@ -233,6 +269,10 @@ struct buffer {
   }
 };
 
+/**
+ * @brief A heap-allocated statically-sized buffer of bytes. Its contents are not guaranteed to be
+ * initialized.
+ */
 using byte_buffer = buffer<std::uint8_t>;
 
 /**
@@ -245,11 +285,19 @@ struct [[nodiscard]] blob_t {
  private:
   using deallocator = func<void(std::uint8_t const*, std::size_t)>;
 
+  /**
+   * @brief No-op deallocator function used as the default deallocator.
+   * The noop_deallocator function does nothing and is used as the default deallocator for blob_t
+   * objects that do not require any special cleanup of their binary data. This allows for zero-copy
+   * views of binary data that is managed elsewhere (e.g., static memory, mmap'd file) without
+   * incurring any additional overhead.
+   */
   static void noop_deallocator(std::uint8_t const*, std::size_t) {}
 
-  std::uint8_t const* data_;
-  std::size_t size_;
-  deallocator deallocator_;
+  std::uint8_t const* data_;  ///< Pointer to the binary data
+  std::size_t size_;          ///< Size of the binary data in bytes
+  deallocator
+    deallocator_;  ///< User-provided deallocator function to manage the lifetime of the binary data
 
   blob_t(std::uint8_t const* data, std::size_t size, deallocator deallocator)
     : data_(data), size_(size), deallocator_(deallocator)
@@ -257,11 +305,20 @@ struct [[nodiscard]] blob_t {
   }
 
  public:
+  /**
+   * @brief Default constructor. Creates an empty blob_t object with no binary data and a no-op
+   * deallocator.
+   */
   blob_t() : data_(nullptr), size_(0), deallocator_(noop_deallocator) {}
 
   blob_t(blob_t const&)            = delete;
   blob_t& operator=(blob_t const&) = delete;
 
+  /**
+   * @brief Move constructor. Transfers ownership of the blob_t object from the source to the new
+   * object.
+   * @param other The source blob_t object to move from
+   */
   blob_t(blob_t&& other) noexcept
     : data_(other.data_), size_(other.size_), deallocator_(other.deallocator_)
   {
@@ -270,6 +327,12 @@ struct [[nodiscard]] blob_t {
     other.deallocator_ = noop_deallocator;
   }
 
+  /**
+   * @brief Move assignment operator. Transfers ownership of the blob_t object from the source to
+   * the current object.
+   * @param other The source blob_t object to move from
+   * @return A reference to the current blob_t object after the move
+   */
   blob_t& operator=(blob_t&& other) noexcept
   {
     if (this == &other) [[unlikely]] { return *this; }
@@ -278,22 +341,49 @@ struct [[nodiscard]] blob_t {
     return *this;
   }
 
+  /**
+   * @brief Destructor. Calls the user-provided deallocator function to manage the lifetime of the
+   * binary data.
+   */
   ~blob_t() { deallocator_(data_, size_); }
 
+  /**
+   * @brief Returns a span view of the binary data in the blob_t object.
+   * @return A span view of the binary data in the blob_t object
+   */
   [[nodiscard]] std::span<std::uint8_t const> view() const { return {data_, size_}; }
 
+  /**
+   * @brief Creates a blob_t object from a pointer to binary data, its size, and a user-provided
+   * deallocator
+   */
   static blob_t from_parts(std::uint8_t const* data, std::size_t size, deallocator deallocator)
   {
     return blob_t{data, size, deallocator};
   }
 
+  /**
+   * @brief Creates a blob_t object from a byte buffer, taking ownership of the buffer's data.
+   */
   static blob_t from_buffer(byte_buffer buffer);
 
+  /**
+   * @brief Creates a blob_t object from a span of static binary data. The blob_t object does not
+   * take ownership of the data and uses a no-op deallocator.
+   */
   static blob_t from_static_data(std::span<std::uint8_t const> data);
 
+  /**
+   * @brief Creates a blob_t object from a memory-mapped file. The blob_t object takes ownership of
+   * the mapped memory.
+   */
   static std::optional<blob_t> from_file(char const* path);
 };
 
+/**
+ * @brief Shared pointer to a blob_t object. This type is used to manage the lifetime of blob_t
+ * objects and enable shared ownership of binary data across different parts of the program.
+ */
 using blob = std::shared_ptr<blob_t>;
 
 /**
@@ -301,9 +391,9 @@ using blob = std::shared_ptr<blob_t>;
  * optimize kernel launches for maximum performance on the GPU.
  */
 struct [[nodiscard]] kernel_occupancy_config {
-  std::uint32_t min_grid_size = 0;  //< Minimum grid size to achieve the maximum occupancy
+  std::uint32_t min_grid_size = 0;  ///< Minimum grid size to achieve the maximum occupancy
   std::uint32_t block_size =
-    0;  //< Number of threads per block to achieve the min_grid_size occupancy
+    0;  ///< Number of threads per block to achieve the min_grid_size occupancy
 };
 
 /**
@@ -311,9 +401,9 @@ struct [[nodiscard]] kernel_occupancy_config {
  * struct is used to specify the configuration of kernel launches on the GPU.
  */
 struct cuda_dim3 {
-  std::uint32_t x = 1;  //< Value for the x dimension
-  std::uint32_t y = 1;  //< Value for the y dimension
-  std::uint32_t z = 1;  //< Value for the z dimension
+  std::uint32_t x = 1;  ///< Value for the x dimension
+  std::uint32_t y = 1;  ///< Value for the y dimension
+  std::uint32_t z = 1;  ///< Value for the z dimension
 
   [[nodiscard]] constexpr bool is_valid() const { return x > 0 && y > 0 && z > 0; }
 };
@@ -323,9 +413,13 @@ struct cuda_dim3 {
  */
 struct [[nodiscard]] kernel_ref {
  private:
-  CUkernel handle_;
+  CUkernel handle_;  ///< Handle to the underlying CUDA kernel
 
  public:
+  /**
+   * @brief Constructs a kernel_ref object from a CUDA kernel handle.
+   * @param handle The CUDA kernel handle to wrap in a kernel_ref object
+   */
   explicit kernel_ref(CUkernel handle) : handle_(handle) {}
 
   /**
@@ -386,14 +480,22 @@ struct [[nodiscard]] kernel_ref {
  */
 struct [[nodiscard]] library_t {
  private:
-  CUlibrary handle_;
+  CUlibrary handle_;  ///< Handle to the underlying CUDA library
 
  public:
+  /**
+   * @brief Constructs a library_t object from a CUDA library handle.
+   * @param handle The CUDA library handle to wrap in a library_t object
+   */
   explicit library_t(CUlibrary handle) : handle_(handle) {}
   library_t(library_t const&)            = delete;
   library_t(library_t&&)                 = delete;
   library_t& operator=(library_t const&) = delete;
   library_t& operator=(library_t&&)      = delete;
+
+  /**
+   * @brief Destructor. Unloads the CUDA library associated with this library_t object.
+   */
   ~library_t();
 
   /**
@@ -407,63 +509,77 @@ struct [[nodiscard]] library_t {
   [[nodiscard]] kernel_ref get_kernel(char const* name) const;
 };
 
+/**
+ * @brief Shared pointer to a library_t object. This type is used to manage the lifetime of
+ * library_t objects and enable shared ownership of loaded libraries across different parts of the
+ * program.
+ */
 using library = std::shared_ptr<library_t>;
 
 /**
  * @brief Parameters for compiling source code into a binary blob using NVRTC
  */
 struct [[nodiscard]] compile_params {
-  char const* name   = nullptr;                            //< Debug name for the compilation unit
-  char const* source = nullptr;                            //< Source code to be compiled
-  std::span<char const* const> header_include_names = {};  //< Header file names
-  std::span<char const* const> headers              = {};  //< Header file contents
-  std::span<char const* const> options              = {};  //< NVRTC compilation options
-  std::span<char const* const> name_expressions     = {};  //< Name expressions to be instantiated
-  binary_type target_type                           = binary_type::LTO_IR;  //<  Output binary type
+  char const* name   = nullptr;                            ///< Debug name for the compilation unit
+  char const* source = nullptr;                            ///< Source code to be compiled
+  std::span<char const* const> header_include_names = {};  ///< Header file names
+  std::span<char const* const> headers              = {};  ///< Header file contents
+  std::span<char const* const> options              = {};  ///< NVRTC compilation options
+  std::span<char const* const> name_expressions     = {};  ///< Name expressions to be instantiated
+  binary_type target_type                           = binary_type::LTO_IR;  ///<  Output binary type
 };
 
 /**
  * @brief Represents a binary fragment in memory to be linked into a library
  */
 struct memory_fragment {
-  std::span<std::uint8_t const> data = {};                  //< Binary data for the fragment
-  binary_type type                   = binary_type::CUBIN;  //< Binary type of the fragment data
-  char const* name                   = nullptr;             //< Debug name for the fragment
+  std::span<std::uint8_t const> data = {};                  ///< Binary data for the fragment
+  binary_type type                   = binary_type::CUBIN;  ///< Binary type of the fragment data
+  char const* name                   = nullptr;             ///< Debug name for the fragment
 };
 
 /**
  * @brief Represents a binary fragment to be linked into a library
  */
 struct file_fragment {
-  char const* path = nullptr;             //< Path to the binary fragment file
-  binary_type type = binary_type::CUBIN;  //< Binary type of the fragment data
+  char const* path = nullptr;             ///< Path to the binary fragment file
+  binary_type type = binary_type::CUBIN;  ///< Binary type of the fragment data
 };
 
 /**
  * @brief Parameters for linking multiple compiled fragments into a single library
  */
 struct [[nodiscard]] link_params {
-  char const* name                              = nullptr;  //< Debug name for the linked library
-  binary_type output_type                       = binary_type::CUBIN;  //< Output binary type
-  std::span<file_fragment const> file_fragments = {};  //< Binary data for each fragment
+  char const* name                              = nullptr;  ///< Debug name for the linked library
+  binary_type output_type                       = binary_type::CUBIN;  ///< Output binary type
+  std::span<file_fragment const> file_fragments = {};  ///< Binary data for each fragment
   std::span<memory_fragment const> memory_fragments =
-    {};                                            //< Memory-resident binary fragments to link
-  std::span<char const* const> link_options = {};  //< NVJITLink options
+    {};                                            ///< Memory-resident binary fragments to link
+  std::span<char const* const> link_options = {};  ///< NVJITLink options
 };
 
 inline namespace detail {
 
+/**
+ * @brief A least-recently-used (LRU) memory cache for storing key-value pairs.
+ * @tparam T The type of the values to be stored in the cache.
+ * @details This cache uses an unordered_map to store entries and maintains a last-touched
+ * timestamp for each entry to implement the LRU eviction policy. When the number of entries
+ * exceeds the specified limit, the least recently used half of the entries are purged from
+ * the cache. This type does not provide internal synchronization; callers must serialize access.
+ */
 template <typename T>
 struct alignas(CACHELINE_ALIGNMENT) lru_memory_cache {
   struct entry {
-    std::uint64_t last_touched_tick = 0;
-    T value;
+    std::uint64_t last_touched_tick = 0;  //< Last tick when the entry was accessed
+    T value;                              //< The value associated with the entry
 
     void hit(std::uint64_t tick) { last_touched_tick = tick; }
   };
 
-  std::unordered_map<hash128, entry, hash128_hasher> entries_ = {};
-  std::size_t limit_;
+  std::unordered_map<hash128, entry, hash128_hasher> entries_ =
+    {};                //< The underlying storage for the cache
+  std::size_t limit_;  //< The maximum number of entries allowed in the cache before eviction occurs
 
   explicit lru_memory_cache(std::size_t limit) : limit_{limit}
   {
@@ -528,32 +644,44 @@ struct cache_stats_counter {
     }
   };
 
-  entry blob_mem_hits;
-  entry blob_mem_misses;
-  entry blob_disk_hits;
-  entry blob_disk_misses;
-  entry library_mem_hits;
-  entry library_mem_misses;
-  entry library_disk_hits;
-  entry library_disk_misses;
+  entry blob_mem_hits;        //< Number of cache hits for blobs in the in-memory cache
+  entry blob_mem_misses;      //< Number of cache misses for blobs in the in-memory cache
+  entry blob_disk_hits;       //< Number of cache hits for blobs in the on-disk cache
+  entry blob_disk_misses;     //< Number of cache misses for blobs in the on-disk cache
+  entry library_mem_hits;     //< Number of cache hits for libraries in the in-memory cache
+  entry library_mem_misses;   //< Number of cache misses for libraries in the in-memory cache
+  entry library_disk_hits;    //< Number of cache hits for libraries in the on-disk cache
+  entry library_disk_misses;  //< Number of cache misses for libraries in the on-disk cache
 };
 
 };  // namespace detail
 
+/**
+ * @brief Statistics for cache performance, including hits and misses for both in-memory and
+ * on-disk caches. This struct is used to monitor cache performance in benchmarking and debugging.
+ */
 struct [[nodiscard]] cache_stats {
-  std::uint64_t blob_mem_hits       = 0;
-  std::uint64_t blob_mem_misses     = 0;
-  std::uint64_t blob_disk_hits      = 0;
-  std::uint64_t blob_disk_misses    = 0;
-  std::uint64_t library_mem_hits    = 0;
-  std::uint64_t library_mem_misses  = 0;
-  std::uint64_t library_disk_hits   = 0;
-  std::uint64_t library_disk_misses = 0;
+  std::uint64_t blob_mem_hits    = 0;  ///< Number of cache hits for blobs in the in-memory cache
+  std::uint64_t blob_mem_misses  = 0;  ///< Number of cache misses for blobs in the in-memory cache
+  std::uint64_t blob_disk_hits   = 0;  ///< Number of cache hits for blobs in the on-disk cache
+  std::uint64_t blob_disk_misses = 0;  ///< Number of cache misses for blobs in the on-disk cache
+  std::uint64_t library_mem_hits =
+    0;  ///< Number of cache hits for libraries in the in-memory cache
+  std::uint64_t library_mem_misses =
+    0;  ///< Number of cache misses for libraries in the in-memory cache
+  std::uint64_t library_disk_hits = 0;  ///< Number of cache hits for libraries in the on-disk cache
+  std::uint64_t library_disk_misses =
+    0;  ///< Number of cache misses for libraries in the on-disk cache
 };
 
+/**
+ * @brief Limits for the number of blobs and libraries to store in the cache before eviction occurs
+ */
 struct [[nodiscard]] cache_limits {
-  std::uint32_t num_mem_blobs     = 16'384;
-  std::uint32_t num_mem_libraries = 16'384;
+  std::uint32_t num_mem_blobs =
+    16'384;  ///< Maximum number of blobs to store in the in-memory cache before eviction occurs
+  std::uint32_t num_mem_libraries =
+    16'384;  ///< Maximum number of libraries to store in the in-memory cache before eviction occurs
 };
 
 using blob_compile_func    = func<blob()>;
@@ -564,8 +692,8 @@ using library_compile_func = func<std::tuple<library, blob>()>;
  *
  * @details Provides in-memory and on-disk caching of compiled RTC artifacts.
  * The cache uses an LRU eviction policy when the number of cached items exceeds user-defined
- * limits. In-memory cache is implemented using a thread-safe LRU cache that supports concurrent
- * reads. The on-disk cache also allows concurrent access and stores cached items in files within a
+ * limits. cache_t serializes access to its in-memory LRU caches. The on-disk cache also allows
+ * concurrent access and stores cached items in files within a
  * specified directory. Writing to disk is atomic to prevent corruption from concurrent writes or
  * process interruptions. In addition, the cache maintains statistics on cache hits and misses for
  * both in-memory and on-disk caches to help monitor cache performance in benchmarking and
@@ -574,21 +702,24 @@ using library_compile_func = func<std::tuple<library, blob>()>;
  */
 struct cache_t {  // NOLINT
  private:
-  bool enabled_;
+  bool enabled_;  ///< Flag indicating whether the cache is enabled or disabled
 
-  std::string cache_dir_;
+  std::string cache_dir_;  ///< Directory path for on-disk caching of compiled blobs and libraries
 
-  std::string tmp_dir_;
+  std::string
+    tmp_dir_;  ///< Directory path for temporary files during atomic writes to the on-disk cache
 
-  cache_limits limits_;
+  cache_limits limits_;  ///< Cache limits before eviction occurs
 
-  std::mutex lock_;
+  std::mutex lock_;  ///< Mutex for synchronizing access to the cache
 
-  detail::lru_memory_cache<std::shared_future<blob>> blobs_cache_;
+  detail::lru_memory_cache<std::shared_future<blob>>
+    blobs_cache_;  ///< In-memory LRU cache for compiled blobs
 
-  detail::lru_memory_cache<std::shared_future<library>> libraries_cache_;
+  detail::lru_memory_cache<std::shared_future<library>>
+    libraries_cache_;  ///< In-memory LRU cache for compiled libraries
 
-  detail::cache_stats_counter counter_;
+  detail::cache_stats_counter counter_;  ///< Counter for cache performance statistics
 
   alignas(CACHELINE_ALIGNMENT) std::uint64_t tick_;  // NOLINT(modernize-use-default-member-init)
 

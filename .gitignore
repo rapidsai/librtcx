@@ -1,0 +1,8 @@
+## Common
+.cache
+.vscode
+.clangd
+compile_commands.json
+
+## C++ build directories & artifacts
+build/
