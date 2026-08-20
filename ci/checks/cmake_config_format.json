@@ -38,6 +38,18 @@
           "COMPRESSION": 1,
           "OUTPUT_DIRECTORY": 1
         }
+      },
+      "rtcx_jit_lto_embed_begin": {
+        "pargs": 1,
+        "kwargs": {
+          "OUTPUT_DIRECTORY": 1
+        }
+      },
+      "rtcx_jit_lto_embed_finalize": {
+        "pargs": 1,
+        "kwargs": {
+          "SOURCE_LIST": 1
+        }
       }
     }
   }
