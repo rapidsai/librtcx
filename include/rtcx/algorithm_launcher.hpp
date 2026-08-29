@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <rtcx/cuda_library_compat.hpp>
+
 #include <cuda_runtime.h>
 
 #include <driver_types.h>
@@ -21,7 +23,7 @@ namespace rtcx {
 struct algorithm_launcher {
   algorithm_launcher() : kernel{nullptr}, library{nullptr} {}
 
-  algorithm_launcher(cudaKernel_t k, cudaLibrary_t lib);
+  algorithm_launcher(cudaKernel_t k, library_t lib);
 
   ~algorithm_launcher();
 
@@ -60,7 +62,7 @@ struct algorithm_launcher {
   void call_cooperative(
     cudaStream_t stream, dim3 grid, dim3 block, std::size_t shared_mem, void** args);
   cudaKernel_t kernel;
-  cudaLibrary_t library;
+  library_t library;
 };
 
 }  // namespace rtcx

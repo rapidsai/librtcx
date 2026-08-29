@@ -83,6 +83,18 @@ target_include_directories(rtcx PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_
 
 target_link_libraries(rtcx PRIVATE zstd ${CMAKE_DL_LIBS} nvtx3::nvtx3-cpp)
 
+# Toolkits older than CUDA 12.8 do not provide the runtime library-management API
+# (cudaLibraryLoadData & co) -- the entry points are missing from libcudart, not just from the
+# headers -- so rtcx uses the equivalent driver-API entry points instead and needs the driver stub
+# at link time. See include/rtcx/cuda_library_compat.hpp.
+if(CUDAToolkit_VERSION VERSION_LESS 12.8)
+  target_link_libraries(rtcx PRIVATE CUDA::cuda_driver)
+  message(
+    STATUS
+      "rtcx: CUDA ${CUDAToolkit_VERSION} predates the runtime library-management API; using the driver API"
+  )
+endif()
+
 if(RTCX_STATIC_LINK_NVRTC)
   target_link_libraries(rtcx PRIVATE CUDA::nvrtc_static CUDA::nvrtc_builtins_static)
   target_compile_definitions(rtcx PRIVATE RTCX_STATIC_LINK_LIBNVRTC=1)

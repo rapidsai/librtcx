@@ -99,12 +99,11 @@ std::shared_ptr<algorithm_launcher> algorithm_planner::build()
   RTCX_EXPECTS(result == NVJITLINK_SUCCESS, "nvJitLinkDestroy failed");
 
   // cubin is linked, so now load it
-  cudaLibrary_t library;
-  RTCX_CUDA_TRY(
-    cudaLibraryLoadData(&library, cubin.get(), nullptr, nullptr, 0, nullptr, nullptr, 0));
+  library_t library;
+  RTCX_CUDA_TRY(library_load_data(&library, cubin.get()));
 
   cudaKernel_t kernel;
-  RTCX_CUDA_TRY(cudaLibraryGetKernel(&kernel, library, this->entrypoint.c_str()));
+  RTCX_CUDA_TRY(library_get_kernel(&kernel, library, this->entrypoint.c_str()));
 
   return std::make_shared<algorithm_launcher>(kernel, library);
 }
