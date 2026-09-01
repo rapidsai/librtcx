@@ -8,7 +8,7 @@
 
 namespace rtcx {
 
-algorithm_launcher::algorithm_launcher(cudaKernel_t k, library_t lib) : kernel{k}, library{lib}
+algorithm_launcher::algorithm_launcher(cudaKernel_t k, cuda_library_t lib) : kernel{k}, library{lib}
 {
 }
 

@@ -23,7 +23,7 @@ namespace rtcx {
 struct algorithm_launcher {
   algorithm_launcher() : kernel{nullptr}, library{nullptr} {}
 
-  algorithm_launcher(cudaKernel_t k, library_t lib);
+  algorithm_launcher(cudaKernel_t k, cuda_library_t lib);
 
   ~algorithm_launcher();
 
@@ -62,7 +62,7 @@ struct algorithm_launcher {
   void call_cooperative(
     cudaStream_t stream, dim3 grid, dim3 block, std::size_t shared_mem, void** args);
   cudaKernel_t kernel;
-  library_t library;
+  cuda_library_t library;
 };
 
 }  // namespace rtcx

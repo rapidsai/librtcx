@@ -68,7 +68,8 @@ endif()
 
 add_library(rtcx STATIC
             src/hash.cpp src/rtcx.cpp src/algorithm_launcher.cpp src/algorithm_planner.cpp
-            src/fragment_entry.cpp src/nvjitlink_checker.cpp src/nvrtc_lto_fragment_compiler.cpp)
+            src/cuda_library_compat.cpp src/fragment_entry.cpp src/nvjitlink_checker.cpp
+            src/nvrtc_lto_fragment_compiler.cpp)
 add_library(rtcx::rtcx ALIAS rtcx)
 
 set_target_properties(rtcx
@@ -83,16 +84,10 @@ target_include_directories(rtcx PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_
 
 target_link_libraries(rtcx PRIVATE zstd ${CMAKE_DL_LIBS} nvtx3::nvtx3-cpp)
 
-# Toolkits older than CUDA 12.8 do not provide the runtime library-management API
-# (cudaLibraryLoadData & co) -- the entry points are missing from libcudart, not just from the
-# headers -- so rtcx uses the equivalent driver-API entry points instead and needs the driver stub
-# at link time. See include/rtcx/cuda_library_compat.hpp.
+# Below CUDA 12.8 the driver library-management API is used instead of the runtime one. Only the
+# declarations are needed: the entry points are resolved with dlopen and dlsym at run time.
 if(CUDAToolkit_VERSION VERSION_LESS 12.8)
-  target_link_libraries(rtcx PRIVATE CUDA::cuda_driver)
-  message(
-    STATUS
-      "rtcx: CUDA ${CUDAToolkit_VERSION} predates the runtime library-management API; using the driver API"
-  )
+  target_link_libraries(rtcx PRIVATE $<COMPILE_ONLY:CUDA::cuda_driver>)
 endif()
 
 if(RTCX_STATIC_LINK_NVRTC)
