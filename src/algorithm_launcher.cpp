@@ -8,13 +8,13 @@
 
 namespace rtcx {
 
-algorithm_launcher::algorithm_launcher(cudaKernel_t k, cudaLibrary_t lib) : kernel{k}, library{lib}
+algorithm_launcher::algorithm_launcher(cudaKernel_t k, cuda_library_t lib) : kernel{k}, library{lib}
 {
 }
 
 algorithm_launcher::~algorithm_launcher()
 {
-  if (library != nullptr) { (void)cudaLibraryUnload(library); }
+  if (library != nullptr) { (void)library_unload(library); }
 }
 
 algorithm_launcher::algorithm_launcher(algorithm_launcher&& other) noexcept
@@ -27,7 +27,7 @@ algorithm_launcher::algorithm_launcher(algorithm_launcher&& other) noexcept
 algorithm_launcher& algorithm_launcher::operator=(algorithm_launcher&& other) noexcept
 {
   if (this != &other) {
-    if (library != nullptr) { cudaLibraryUnload(library); }
+    if (library != nullptr) { (void)library_unload(library); }
     kernel        = other.kernel;
     library       = other.library;
     other.kernel  = nullptr;
@@ -39,33 +39,15 @@ algorithm_launcher& algorithm_launcher::operator=(algorithm_launcher&& other) no
 void algorithm_launcher::call(
   cudaStream_t stream, dim3 grid, dim3 block, std::size_t shared_mem, void** kernel_args)
 {
-  cudaLaunchConfig_t config{};
-  config.gridDim          = grid;
-  config.blockDim         = block;
-  config.stream           = stream;
-  config.dynamicSmemBytes = shared_mem;
-  config.numAttrs         = 0;
-  config.attrs            = NULL;
-
-  RTCX_CUDA_TRY(cudaLaunchKernelExC(&config, kernel, kernel_args));
+  RTCX_CUDA_TRY(
+    launch_kernel(kernel, grid, block, shared_mem, stream, kernel_args, /* cooperative = */ false));
 }
 
 void algorithm_launcher::call_cooperative(
   cudaStream_t stream, dim3 grid, dim3 block, std::size_t shared_mem, void** kernel_args)
 {
-  cudaLaunchAttribute attribute[1];
-  attribute[0].id              = cudaLaunchAttributeCooperative;
-  attribute[0].val.cooperative = 1;
-
-  cudaLaunchConfig_t config{};
-  config.gridDim          = grid;
-  config.blockDim         = block;
-  config.stream           = stream;
-  config.dynamicSmemBytes = shared_mem;
-  config.numAttrs         = 1;
-  config.attrs            = attribute;
-
-  RTCX_CUDA_TRY(cudaLaunchKernelExC(&config, kernel, kernel_args));
+  RTCX_CUDA_TRY(
+    launch_kernel(kernel, grid, block, shared_mem, stream, kernel_args, /* cooperative = */ true));
 }
 
 }  // namespace rtcx
