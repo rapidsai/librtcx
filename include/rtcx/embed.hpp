@@ -27,6 +27,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #define RTCX_EMBED_EXPECTS(condition, message)                                         \
