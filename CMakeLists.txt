@@ -149,7 +149,7 @@ if(RTCX_INSTALL)
   install(DIRECTORY cmake/modules/embed/ DESTINATION ${lib_dir}/cmake/rtcx/embed)
   install(FILES cmake/modules/generate_jit_lto_kernels.cmake
                 cmake/modules/compute_matrix_product.cmake cmake/modules/compute_matrix_product.py
-                cmake/modules/register_fatbin.cpp.in DESTINATION ${lib_dir}/cmake/rtcx)
+                cmake/modules/register_embedded_fatbins.cpp.in DESTINATION ${lib_dir}/cmake/rtcx)
   install(DIRECTORY libcxx/ DESTINATION ${CMAKE_INSTALL_DATADIR}/rtcx/libcxx)
 
   rapids_export(INSTALL rtcx EXPORT_SET rtcx-exports GLOBAL_TARGETS rtcx NAMESPACE rtcx::

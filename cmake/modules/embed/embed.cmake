@@ -25,8 +25,7 @@ after ``rtcx_add_embed`` and any desired calls to ``rtcx_embed_includes`` or
 
 .. note::
 
-  The ``zstd`` and ``xxhash`` CMake targets must be available before calling
-  ``rtcx_embed``.
+  The ``zstd`` CMake target must be available before calling ``rtcx_embed``.
 
 ``<target>``
   Required. Name of the embed target, previously initialized with ``rtcx_add_embed``.
@@ -72,10 +71,6 @@ function(rtcx_embed TARGET)
   if(NOT TARGET zstd)
     message(FATAL_ERROR "zstd target is required for rtcx_embed().")
   endif()
-  if(NOT TARGET xxhash)
-    message(FATAL_ERROR "xxhash target is required for rtcx_embed().")
-  endif()
-
   if(NOT TARGET ${TARGET}__embed_props)
     message(FATAL_ERROR "embed target '${TARGET}' has not been initialized with rtcx_add_embed()")
   endif()
@@ -125,9 +120,8 @@ function(rtcx_embed TARGET)
   file(GENERATE OUTPUT "${EMBED_SCRIPT}" INPUT "${CONFIGURED_EMBED_SCRIPT}")
 
   set(RUNNER "${TARGET}__jit_embed_run")
-  add_executable(${RUNNER} EXCLUDE_FROM_ALL
-                 "${EMBED_SCRIPT}" ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../../../src/hash.cpp)
-  target_link_libraries(${RUNNER} PRIVATE ${CMAKE_DL_LIBS} xxhash zstd)
+  add_executable(${RUNNER} EXCLUDE_FROM_ALL "${EMBED_SCRIPT}")
+  target_link_libraries(${RUNNER} PRIVATE ${CMAKE_DL_LIBS} zstd)
   target_include_directories(${RUNNER} PRIVATE ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../../../include
                                                ${ZSTD_INCLUDE_DIR})
   set_target_properties(${RUNNER} PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED YES)
