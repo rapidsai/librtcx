@@ -21,7 +21,7 @@ project(rtcx VERSION 0.1.0 LANGUAGES CXX)
 option(RTCX_STATIC_LINK_NVRTC "Use static linking for NVRTC" OFF)
 option(RTCX_STATIC_LINK_NVJITLINK "Use static linking for nvJitLink" OFF)
 
-rapids_find_package(CUDAToolkit REQUIRED BUILD_EXPORT_SET rtcx-exports INSTALL_EXPORT_SET
+rapids_find_package(CUDAToolkit 12.9 REQUIRED BUILD_EXPORT_SET rtcx-exports INSTALL_EXPORT_SET
                     rtcx-exports)
 
 if(NOT TARGET zstd)

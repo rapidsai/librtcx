@@ -15,7 +15,7 @@ RTCX (runtime-compiler extended) is a C++20 wrapper around NVRTC and nvJitLink. 
 - CMake >= 4.0
 - libzstd
 - xxHash
-- CUDA >= 12.2
+- CUDA >= 12.9
 
 # Dependencies
 - nvJitlink >= 12.2
