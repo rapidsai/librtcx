@@ -66,8 +66,20 @@ if(NOT TARGET nvtx3::nvtx3-cpp)
   rapids_cpm_nvtx3(BUILD_EXPORT_SET rtcx-exports INSTALL_EXPORT_SET rtcx-exports)
 endif()
 
+add_library(hash STATIC src/hash.cpp)
+add_library(rtcx::hash ALIAS hash)
+
+set_target_properties(hash
+                      PROPERTIES CXX_STANDARD 20
+                                 CXX_STANDARD_REQUIRED YES
+                                 CXX_VISIBILITY_PRESET hidden
+                                 VISIBILITY_INLINES_HIDDEN YES
+                                 POSITION_INDEPENDENT_CODE ON)
+
+target_include_directories(hash PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+
 add_library(rtcx STATIC
-            src/hash.cpp src/rtcx.cpp src/algorithm_launcher.cpp src/algorithm_planner.cpp
+            src/rtcx.cpp src/algorithm_launcher.cpp src/algorithm_planner.cpp
             src/fragment_entry.cpp src/nvjitlink_checker.cpp src/nvrtc_lto_fragment_compiler.cpp)
 add_library(rtcx::rtcx ALIAS rtcx)
 
@@ -81,7 +93,7 @@ set_target_properties(rtcx
 target_include_directories(rtcx PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                            PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
 
-target_link_libraries(rtcx PRIVATE zstd ${CMAKE_DL_LIBS} nvtx3::nvtx3-cpp)
+target_link_libraries(rtcx PUBLIC rtcx::hash PRIVATE zstd ${CMAKE_DL_LIBS} nvtx3::nvtx3-cpp)
 
 if(RTCX_STATIC_LINK_NVRTC)
   target_link_libraries(rtcx PRIVATE CUDA::nvrtc_static CUDA::nvrtc_builtins_static)
@@ -136,7 +148,7 @@ if(NOT RTCX_INSTALL)
   set(rtcx_exclude_from_install EXCLUDE_FROM_ALL)
 endif()
 
-install(TARGETS rtcx
+install(TARGETS rtcx hash
         EXPORT rtcx-exports
         ARCHIVE DESTINATION ${lib_dir}
         INCLUDES
@@ -152,12 +164,12 @@ if(RTCX_INSTALL)
                 cmake/modules/register_fatbin.cpp.in DESTINATION ${lib_dir}/cmake/rtcx)
   install(DIRECTORY libcxx/ DESTINATION ${CMAKE_INSTALL_DATADIR}/rtcx/libcxx)
 
-  rapids_export(INSTALL rtcx EXPORT_SET rtcx-exports GLOBAL_TARGETS rtcx NAMESPACE rtcx::
+  rapids_export(INSTALL rtcx EXPORT_SET rtcx-exports GLOBAL_TARGETS rtcx hash NAMESPACE rtcx::
                 FINAL_CODE_BLOCK rtcx_install_code_string)
 endif()
 
 # Build-tree export (always, so CPM consumers can find_package from the build tree)
-rapids_export(BUILD rtcx EXPORT_SET rtcx-exports GLOBAL_TARGETS rtcx NAMESPACE rtcx::
+rapids_export(BUILD rtcx EXPORT_SET rtcx-exports GLOBAL_TARGETS rtcx hash NAMESPACE rtcx::
               FINAL_CODE_BLOCK rtcx_build_code_string)
 
 # =============================================================================
