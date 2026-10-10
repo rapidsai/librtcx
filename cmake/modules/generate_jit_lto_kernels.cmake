@@ -78,7 +78,7 @@ function(generate_jit_lto_kernels source_list_var)
 
   cmake_parse_arguments(_JIT_LTO "${options}" "${one_value}" "${multi_value}" ${ARGN})
 
-  find_package(CUDAToolkit REQUIRED)
+  find_package(CUDAToolkit 12.9 REQUIRED)
   find_program(bin_to_c NAMES bin2c PATHS ${CUDAToolkit_BIN_DIR})
 
   if(_JIT_LTO_MATRIX_JSON_FILE)
