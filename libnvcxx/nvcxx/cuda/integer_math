@@ -4,172 +4,18 @@
  */
 #pragma once
 
-#include <nvcxx/cuda/detail/config>
-#include <nvcxx/cuda/detail/integer_bounds>
 #include <nvcxx/cuda/std/bit>
 
-namespace nvcxx {
-
-namespace detail {
-
-template <class T>
-concept math_integer = std::is_integral_v<T> && !std::is_same_v<T, bool>;
-
-template <math_integer T>
-constexpr bool negative(T value)
-{
-  if constexpr (std::is_signed_v<T>) {
-    return value < 0;
-  } else {
-    return false;
-  }
-}
-
-}  // namespace detail
-
-template <detail::math_integer T>
-constexpr T neg(T value)
-{
-  using U = __make_unsigned(T);
-  return static_cast<T>(U(0) - static_cast<U>(value));
-}
-
-template <detail::math_integer T>
-constexpr __make_unsigned(T) uabs(T value)
-{
-  using U = __make_unsigned(T);
-  return detail::negative(value) ? static_cast<U>(U(0) - static_cast<U>(value))
-                                 : static_cast<U>(value);
-}
-
-template <detail::math_integer T>
-constexpr __make_unsigned(T) abs_diff(T a, T b)
-{
-  using U = __make_unsigned(T);
-  return a < b ? static_cast<U>(static_cast<U>(b) - static_cast<U>(a))
-               : static_cast<U>(static_cast<U>(a) - static_cast<U>(b));
-}
-
-template <detail::math_integer T>
-constexpr int ilog2(T value)
-{
-  if (value <= 0) { __builtin_unreachable(); }
-
-  return std::bit_width(static_cast<__make_unsigned(T)>(value)) - 1;
-}
-
-template <detail::math_integer T>
-constexpr int ceil_ilog2(T value)
-{
-  if (value <= 0) { __builtin_unreachable(); }
-
-  return value == 1 ? 0 : ilog2(static_cast<T>(value - 1)) + 1;
-}
-
-template <detail::math_integer T>
-constexpr int ilog10(T value)
-{
-  if (value <= 0) { __builtin_unreachable(); }
-
-  int result = 0;
-  while (value >= 10) {
-    value = static_cast<T>(value / 10);
-    ++result;
-  }
-  return result;
-}
-
-template <detail::math_integer T>
-constexpr bool is_power_of_two(T value)
-{
-  if (detail::negative(value)) { __builtin_unreachable(); }
-
-  using U = __make_unsigned(T);
-  U x     = static_cast<U>(value);
-  return x != 0 && (x & static_cast<U>(x - 1)) == 0;
-}
-
-template <detail::math_integer T>
-constexpr T next_power_of_two(T value)
-{
-  if (detail::negative(value)) { __builtin_unreachable(); }
-
-  auto result = std::bit_ceil(static_cast<__make_unsigned(T)>(value));
-  if (result > static_cast<__make_unsigned(T)>(detail::integer_bounds<T>::max())) {
-    __builtin_unreachable();
-  }
-  return static_cast<T>(result);
-}
-
-template <detail::math_integer T>
-constexpr T prev_power_of_two(T value)
-{
-  if (detail::negative(value)) { __builtin_unreachable(); }
-
-  return static_cast<T>(std::bit_floor(static_cast<__make_unsigned(T)>(value)));
-}
-
-template <detail::math_integer T, detail::math_integer E>
-constexpr T ipow(T base, E exponent)
-{
-  if (base == 0 && detail::negative(exponent)) { __builtin_unreachable(); }
-
-  if (exponent == 0 || base == 1) { return T(1); }
-
-  if (detail::negative(exponent) || base == 0) { return T(0); }
-
-  using U = __make_unsigned(T);
-
-  U power  = static_cast<U>(base);
-  U result = 1;
-
-  while (exponent != 0) {
-    if (exponent & 1) result = static_cast<U>(static_cast<unsigned __int128>(result) * power);
-    exponent = static_cast<E>(exponent >> 1);
-    if (exponent != 0) power = static_cast<U>(static_cast<unsigned __int128>(power) * power);
-  }
-
-  return static_cast<T>(result);
-}
-
-template <detail::math_integer T, detail::math_integer U>
-constexpr std::common_type_t<T, U> ceil_div(T x, U y)
-{
-  if (detail::negative(x) || y <= 0) { __builtin_unreachable(); }
-
-  using R = std::common_type_t<T, U>;
-  using W = __make_unsigned(decltype(x / y));
-  W a     = static_cast<W>(x);
-  W b     = static_cast<W>(y);
-  return static_cast<R>(a / b + (a % b != 0));
-}
-
-template <detail::math_integer T, detail::math_integer U>
-constexpr std::common_type_t<T, U> round_down(T x, U y)
-{
-  if (detail::negative(x) || y <= 0) { __builtin_unreachable(); }
-
-  using R = std::common_type_t<T, U>;
-  using W = __make_unsigned(decltype(x / y));
-  W a     = static_cast<W>(x);
-  W b     = static_cast<W>(y);
-  return static_cast<R>(a - a % b);
-}
-
-template <detail::math_integer T, detail::math_integer U>
-constexpr std::common_type_t<T, U> round_up(T x, U y)
-{
-  using R       = std::common_type_t<T, U>;
-  auto quotient = ceil_div(x, y);
-
-  if (static_cast<unsigned __int128>(quotient) >
-      static_cast<unsigned __int128>(detail::integer_bounds<R>::max()) /
-        static_cast<unsigned __int128>(y)) {
-    __builtin_unreachable();
-  }
-
-  return static_cast<R>(static_cast<unsigned __int128>(quotient) *
-                        static_cast<unsigned __int128>(y));
-}
-
-}  // namespace nvcxx
+#include <nvcxx/cuda/integer_math.abs_diff.h>
+#include <nvcxx/cuda/integer_math.ceil_div.h>
+#include <nvcxx/cuda/integer_math.ceil_ilog2.h>
+#include <nvcxx/cuda/integer_math.ilog10.h>
+#include <nvcxx/cuda/integer_math.ilog2.h>
+#include <nvcxx/cuda/integer_math.ipow.h>
+#include <nvcxx/cuda/integer_math.is_power_of_two.h>
+#include <nvcxx/cuda/integer_math.neg.h>
+#include <nvcxx/cuda/integer_math.next_power_of_two.h>
+#include <nvcxx/cuda/integer_math.prev_power_of_two.h>
+#include <nvcxx/cuda/integer_math.round_down.h>
+#include <nvcxx/cuda/integer_math.round_up.h>
+#include <nvcxx/cuda/integer_math.uabs.h>

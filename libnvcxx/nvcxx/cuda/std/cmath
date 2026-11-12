@@ -4,313 +4,36 @@
  */
 #pragma once
 
-#include <nvcxx/cuda/detail/config>
-#include <nvcxx/cuda/std/type_traits>
-
-namespace nvcxx::std {
-
-template <class T>
-constexpr T abs(T x)
-{
-  return x < T(0) ? -x : x;
-}
-
-using ::acos;
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double acos(T x)
-{
-  return ::acos(static_cast<double>(x));
-}
-
-using ::acosh;
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double acosh(T x)
-{
-  return ::acosh(static_cast<double>(x));
-}
-
-using ::asin;
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double asin(T x)
-{
-  return ::asin(static_cast<double>(x));
-}
-
-using ::asinh;
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double asinh(T x)
-{
-  return ::asinh(static_cast<double>(x));
-}
-
-using ::atan;
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double atan(T x)
-{
-  return ::atan(static_cast<double>(x));
-}
-
-using ::atanh;
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double atanh(T x)
-{
-  return ::atanh(static_cast<double>(x));
-}
-
-using ::cbrt;
-
-using ::ceil;
-
-using ::cos;
-
-using ::cosh;
-
-using ::exp;
-
-using ::fabs;
-
-using ::floor;
-
-using ::fmod;
-
-using ::log;
-
-using ::pow;
-
-using ::rint;
-
-using ::round;
-
-using ::sin;
-
-using ::sinh;
-
-using ::sqrt;
-
-using ::tan;
-
-using ::tanh;
-
-using ::trunc;
-
-using ::exp2;
-
-using ::expm1;
-
-using ::log2;
-
-using ::log10;
-
-using ::log1p;
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double cbrt(T x)
-{
-  return ::cbrt(static_cast<double>(x));
-}
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double ceil(T x)
-{
-  return ::ceil(static_cast<double>(x));
-}
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double cos(T x)
-{
-  return ::cos(static_cast<double>(x));
-}
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double cosh(T x)
-{
-  return ::cosh(static_cast<double>(x));
-}
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double exp(T x)
-{
-  return ::exp(static_cast<double>(x));
-}
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double exp2(T x)
-{
-  return ::exp2(static_cast<double>(x));
-}
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double expm1(T x)
-{
-  return ::expm1(static_cast<double>(x));
-}
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double fabs(T x)
-{
-  return ::fabs(static_cast<double>(x));
-}
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double floor(T x)
-{
-  return ::floor(static_cast<double>(x));
-}
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double log(T x)
-{
-  return ::log(static_cast<double>(x));
-}
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double log10(T x)
-{
-  return ::log10(static_cast<double>(x));
-}
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double log1p(T x)
-{
-  return ::log1p(static_cast<double>(x));
-}
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double log2(T x)
-{
-  return ::log2(static_cast<double>(x));
-}
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double rint(T x)
-{
-  return ::rint(static_cast<double>(x));
-}
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double round(T x)
-{
-  return ::round(static_cast<double>(x));
-}
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double sin(T x)
-{
-  return ::sin(static_cast<double>(x));
-}
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double sinh(T x)
-{
-  return ::sinh(static_cast<double>(x));
-}
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double sqrt(T x)
-{
-  return ::sqrt(static_cast<double>(x));
-}
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double tan(T x)
-{
-  return ::tan(static_cast<double>(x));
-}
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double tanh(T x)
-{
-  return ::tanh(static_cast<double>(x));
-}
-
-template <class T>
-  requires is_integral_v<T>
-__device__ inline double trunc(T x)
-{
-  return ::trunc(static_cast<double>(x));
-}
-
-namespace detail {
-
-template <class T>
-concept math_arithmetic = is_integral_v<T> || is_same_v<T, float> || is_same_v<T, double>;
-
-template <class T>
-using math_promote_t = conditional_t<is_integral_v<T>, double, T>;
-
-template <class... T>
-using math_common_t = common_type_t<math_promote_t<T>...>;
-
-}  // namespace detail
-
-using ::atan2;
-
-template <detail::math_arithmetic T, detail::math_arithmetic U>
-__device__ inline detail::math_common_t<T, U> atan2(T x, U y)
-{
-  using R = detail::math_common_t<T, U>;
-  return nvcxx::std::atan2(static_cast<R>(x), static_cast<R>(y));
-}
-
-using ::hypot;
-
-template <detail::math_arithmetic T, detail::math_arithmetic U>
-__device__ inline detail::math_common_t<T, U> hypot(T x, U y)
-{
-  using R = detail::math_common_t<T, U>;
-  return nvcxx::std::hypot(static_cast<R>(x), static_cast<R>(y));
-}
-
-using ::fma;
-
-template <detail::math_arithmetic T, detail::math_arithmetic U, detail::math_arithmetic V>
-__device__ inline detail::math_common_t<T, U, V> fma(T x, U y, V z)
-{
-  using R = detail::math_common_t<T, U, V>;
-  return nvcxx::std::fma(static_cast<R>(x), static_cast<R>(y), static_cast<R>(z));
-}
-
-template <detail::math_arithmetic T, detail::math_arithmetic U, detail::math_arithmetic V>
-__device__ inline detail::math_common_t<T, U, V> hypot(T x, U y, V z)
-{
-  using R = detail::math_common_t<T, U, V>;
-  if constexpr (is_same_v<R, float>) {
-    return ::norm3df(static_cast<R>(x), static_cast<R>(y), static_cast<R>(z));
-  } else {
-    return ::norm3d(static_cast<R>(x), static_cast<R>(y), static_cast<R>(z));
-  }
-}
-
-}  // namespace nvcxx::std
+#include <nvcxx/cuda/std/cmath.abs.h>
+#include <nvcxx/cuda/std/cmath.acos.h>
+#include <nvcxx/cuda/std/cmath.acosh.h>
+#include <nvcxx/cuda/std/cmath.asin.h>
+#include <nvcxx/cuda/std/cmath.asinh.h>
+#include <nvcxx/cuda/std/cmath.atan.h>
+#include <nvcxx/cuda/std/cmath.atan2.h>
+#include <nvcxx/cuda/std/cmath.atanh.h>
+#include <nvcxx/cuda/std/cmath.cbrt.h>
+#include <nvcxx/cuda/std/cmath.ceil.h>
+#include <nvcxx/cuda/std/cmath.cos.h>
+#include <nvcxx/cuda/std/cmath.cosh.h>
+#include <nvcxx/cuda/std/cmath.exp.h>
+#include <nvcxx/cuda/std/cmath.exp2.h>
+#include <nvcxx/cuda/std/cmath.expm1.h>
+#include <nvcxx/cuda/std/cmath.fabs.h>
+#include <nvcxx/cuda/std/cmath.floor.h>
+#include <nvcxx/cuda/std/cmath.fma.h>
+#include <nvcxx/cuda/std/cmath.fmod.h>
+#include <nvcxx/cuda/std/cmath.hypot.h>
+#include <nvcxx/cuda/std/cmath.log.h>
+#include <nvcxx/cuda/std/cmath.log10.h>
+#include <nvcxx/cuda/std/cmath.log1p.h>
+#include <nvcxx/cuda/std/cmath.log2.h>
+#include <nvcxx/cuda/std/cmath.pow.h>
+#include <nvcxx/cuda/std/cmath.rint.h>
+#include <nvcxx/cuda/std/cmath.round.h>
+#include <nvcxx/cuda/std/cmath.sin.h>
+#include <nvcxx/cuda/std/cmath.sinh.h>
+#include <nvcxx/cuda/std/cmath.sqrt.h>
+#include <nvcxx/cuda/std/cmath.tan.h>
+#include <nvcxx/cuda/std/cmath.tanh.h>
+#include <nvcxx/cuda/std/cmath.trunc.h>

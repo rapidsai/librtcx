@@ -22,6 +22,20 @@ concept overflow_integer =
   std::is_same_v<T, unsigned long long> || std::is_same_v<T, __int128> ||
   std::is_same_v<T, unsigned __int128>;
 
+constexpr unsigned __int128 mul_hi128(unsigned __int128 a, unsigned __int128 b)
+{
+  // High half of a 256-bit product, assembled from 64-bit limbs.
+  auto a_lo   = static_cast<unsigned long long>(a);
+  auto a_hi   = static_cast<unsigned long long>(a >> 64);
+  auto b_lo   = static_cast<unsigned long long>(b);
+  auto b_hi   = static_cast<unsigned long long>(b >> 64);
+  auto low    = static_cast<unsigned __int128>(a_lo) * b_lo;
+  auto middle = static_cast<unsigned __int128>(a_hi) * b_lo + (low >> 64);
+  auto high   = static_cast<unsigned __int128>(a_hi) * b_hi + (middle >> 64);
+  middle = static_cast<unsigned __int128>(a_lo) * b_hi + static_cast<unsigned long long>(middle);
+  return high + (middle >> 64);
+}
+
 }  // namespace detail
 
 // Result types
@@ -40,21 +54,25 @@ template <detail::overflow_integer To, detail::overflow_integer From>
 constexpr overflow_result<To> overflow_cast(From const& value)
 {
   bool overflow;
-  if constexpr (std::is_signed_v<From>) {
-    if (value < 0) {
-      if constexpr (std::is_signed_v<To>) {
-        overflow = static_cast<__int128>(value) <
-                   static_cast<__int128>(detail::integer_bounds<To>::lowest());
-      } else {
-        overflow = true;
-      }
+  if constexpr (std::is_signed_v<From> == std::is_signed_v<To>) {
+    if constexpr (sizeof(To) >= sizeof(From)) {
+      overflow = false;
     } else {
-      overflow = static_cast<unsigned __int128>(value) >
-                 static_cast<unsigned __int128>(detail::integer_bounds<To>::max());
+      overflow =
+        value < detail::integer_bounds<To>::lowest() || value > detail::integer_bounds<To>::max();
+    }
+  } else if constexpr (std::is_signed_v<From>) {
+    overflow = value < 0;
+    if constexpr (sizeof(To) < sizeof(From)) {
+      overflow =
+        overflow || static_cast<__make_unsigned(From)>(value) > detail::integer_bounds<To>::max();
     }
   } else {
-    overflow = static_cast<unsigned __int128>(value) >
-               static_cast<unsigned __int128>(detail::integer_bounds<To>::max());
+    if constexpr (sizeof(To) > sizeof(From)) {
+      overflow = false;
+    } else {
+      overflow = value > static_cast<From>(detail::integer_bounds<To>::max());
+    }
   }
   return {static_cast<To>(value), overflow};
 }
@@ -64,10 +82,59 @@ constexpr overflow_result<To> overflow_cast(From const& value)
 template <detail::overflow_integer T>
 constexpr overflow_result<T> add_overflow(T a, T b)
 {
-  T r = static_cast<T>(static_cast<unsigned __int128>(a) + static_cast<unsigned __int128>(b));
-  return {r,
-          (b > 0 && a > detail::integer_bounds<T>::max() - b) ||
-            (b < 0 && a < detail::integer_bounds<T>::lowest() - b)};
+  if constexpr (sizeof(T) == 4 && !std::is_signed_v<T>) {
+    if (!__builtin_is_constant_evaluated()) {
+      unsigned int result;
+      unsigned overflow;
+      asm("add.cc.u32 %0, %2, %3;\naddc.u32 %1, 0, 0;"
+          : "=r"(result), "=r"(overflow)
+          : "r"(a), "r"(b));
+      return {result, overflow != 0};
+    }
+  }
+  if constexpr (sizeof(T) == 8 && !std::is_signed_v<T>) {
+    if (!__builtin_is_constant_evaluated()) {
+      unsigned long long result;
+      unsigned overflow;
+      asm("add.cc.u64 %0, %2, %3;\naddc.u32 %1, 0, 0;"
+          : "=l"(result), "=r"(overflow)
+          : "l"(a), "l"(b));
+      return {result, overflow != 0};
+    }
+  }
+  if constexpr (sizeof(T) < 4 && !std::is_signed_v<T>) {
+    auto result = static_cast<unsigned>(a) + static_cast<unsigned>(b);
+    return {static_cast<T>(result), result > detail::integer_bounds<T>::max()};
+  }
+  if constexpr (sizeof(T) == 16 && !std::is_signed_v<T>) {
+    if (!__builtin_is_constant_evaluated()) {
+      unsigned long long low, high;
+      unsigned overflow;
+      asm(
+        "{ .reg .u64 lo, hi;\n"
+        "add.cc.u64 lo, %3, %5;\n"
+        "addc.cc.u64 hi, %4, %6;\n"
+        "addc.u32 %2, 0, 0;\n"
+        "mov.b64 %0, lo;\n"
+        "mov.b64 %1, hi; }"
+        : "=l"(low), "=l"(high), "=r"(overflow)
+        : "l"(static_cast<unsigned long long>(a)),
+          "l"(static_cast<unsigned long long>(a >> 64)),
+          "l"(static_cast<unsigned long long>(b)),
+          "l"(static_cast<unsigned long long>(b >> 64)));
+      return {(static_cast<T>(high) << 64) | low, overflow != 0};
+    }
+  }
+  using U     = __make_unsigned(T);
+  auto result = static_cast<T>(static_cast<U>(a) + static_cast<U>(b));
+  if constexpr (std::is_signed_v<T>) {
+    auto sign = ((static_cast<U>(a) ^ static_cast<U>(result)) &
+                 (static_cast<U>(b) ^ static_cast<U>(result))) >>
+                (sizeof(T) * 8 - 1);
+    return {result, sign != 0};
+  } else {
+    return {result, result < a};
+  }
 }
 
 template <detail::overflow_integer T>
@@ -81,14 +148,66 @@ constexpr bool add_overflow(T& result, T a, T b)
 template <detail::overflow_integer T>
 constexpr overflow_result<T> sub_overflow(T a, T b)
 {
-  if constexpr (std::is_signed_v<T>) {
-    // Keep the wrapped minimum explicit; NVRTC 12.9 miscompiles its negation path.
-    if (a == 0 && b == detail::integer_bounds<T>::lowest()) { return {b, true}; }
+  if constexpr (sizeof(T) == 4 && !std::is_signed_v<T>) {
+    if (!__builtin_is_constant_evaluated()) {
+      unsigned int result;
+      unsigned overflow;
+      asm("sub.cc.u32 %0, %2, %3;\nsubc.u32 %1, 0, 0;"
+          : "=r"(result), "=r"(overflow)
+          : "r"(a), "r"(b));
+      return {result, overflow != 0};
+    }
   }
-  T r = static_cast<T>(static_cast<unsigned __int128>(a) - static_cast<unsigned __int128>(b));
-  return {r,
-          (b < 0 && a > detail::integer_bounds<T>::max() + b) ||
-            (b > 0 && a < detail::integer_bounds<T>::lowest() + b)};
+  if constexpr (sizeof(T) == 8 && !std::is_signed_v<T>) {
+    if (!__builtin_is_constant_evaluated()) {
+      unsigned long long result;
+      unsigned overflow;
+      asm("sub.cc.u64 %0, %2, %3;\nsubc.u32 %1, 0, 0;"
+          : "=l"(result), "=r"(overflow)
+          : "l"(a), "l"(b));
+      return {result, overflow != 0};
+    }
+  }
+  if constexpr (sizeof(T) < 4) {
+    if constexpr (std::is_signed_v<T>) {
+      auto result = static_cast<int>(a) - static_cast<int>(b);
+      return {
+        static_cast<T>(result),
+        result < detail::integer_bounds<T>::lowest() || result > detail::integer_bounds<T>::max()};
+    } else {
+      auto result = static_cast<unsigned>(a) - static_cast<unsigned>(b);
+      return {static_cast<T>(result), result > detail::integer_bounds<T>::max()};
+    }
+  }
+  if constexpr (sizeof(T) == 16 && !std::is_signed_v<T>) {
+    if (!__builtin_is_constant_evaluated()) {
+      unsigned long long low, high;
+      unsigned overflow;
+      asm(
+        "{ .reg .u64 lo, hi;\n"
+        "sub.cc.u64 lo, %3, %5;\n"
+        "subc.cc.u64 hi, %4, %6;\n"
+        "subc.u32 %2, 0, 0;\n"
+        "mov.b64 %0, lo;\n"
+        "mov.b64 %1, hi; }"
+        : "=l"(low), "=l"(high), "=r"(overflow)
+        : "l"(static_cast<unsigned long long>(a)),
+          "l"(static_cast<unsigned long long>(a >> 64)),
+          "l"(static_cast<unsigned long long>(b)),
+          "l"(static_cast<unsigned long long>(b >> 64)));
+      return {(static_cast<T>(high) << 64) | low, overflow != 0};
+    }
+  }
+  using U     = __make_unsigned(T);
+  auto result = static_cast<T>(static_cast<U>(a) - static_cast<U>(b));
+  if constexpr (std::is_signed_v<T>) {
+    auto sign =
+      ((static_cast<U>(a) ^ static_cast<U>(b)) & (static_cast<U>(a) ^ static_cast<U>(result))) >>
+      (sizeof(T) * 8 - 1);
+    return {result, sign != 0};
+  } else {
+    return {result, a < b};
+  }
 }
 
 template <detail::overflow_integer T>
@@ -102,13 +221,43 @@ constexpr bool sub_overflow(T& result, T a, T b)
 template <detail::overflow_integer T>
 constexpr overflow_result<T> mul_overflow(T a, T b)
 {
-  if (a == 0 || b == 0) { return {0, false}; }
-  T r = static_cast<T>(static_cast<unsigned __int128>(a) * static_cast<unsigned __int128>(b));
-  return {r,
-          (a > 0 ? (b > 0 ? a > detail::integer_bounds<T>::max() / b
-                          : b < detail::integer_bounds<T>::lowest() / a)
-                 : (b > 0 ? a < detail::integer_bounds<T>::lowest() / b
-                          : a < detail::integer_bounds<T>::max() / b))};
+  if constexpr (sizeof(T) <= 8) {
+    using SignedWide =
+      std::conditional_t<(sizeof(T) <= 2),
+                         int,
+                         std::conditional_t<(sizeof(T) <= 4), long long, __int128>>;
+    using Wide   = std::conditional_t<std::is_signed_v<T>, SignedWide, __make_unsigned(SignedWide)>;
+    auto product = static_cast<Wide>(a) * static_cast<Wide>(b);
+    return {
+      static_cast<T>(product),
+      product < detail::integer_bounds<T>::lowest() || product > detail::integer_bounds<T>::max()};
+  } else {
+    using U     = unsigned __int128;
+    auto ua     = static_cast<U>(a);
+    auto ub     = static_cast<U>(b);
+    auto result = static_cast<T>(ua * ub);
+    if constexpr (std::is_signed_v<T>) {
+      auto high = detail::mul_hi128(ua, ub);
+      if (a < 0) { high -= ub; }
+      if (b < 0) { high -= ua; }
+      // A representable product has only the low half's sign extension above it.
+      return {result, high != (result < 0 ? U(-1) : U(0))};
+    } else {
+      auto a_lo  = static_cast<unsigned long long>(ua);
+      auto a_hi  = static_cast<unsigned long long>(ua >> 64);
+      auto b_lo  = static_cast<unsigned long long>(ub);
+      auto b_hi  = static_cast<unsigned long long>(ub >> 64);
+      auto p00   = static_cast<U>(a_lo) * b_lo;
+      auto p01   = static_cast<U>(a_lo) * b_hi;
+      auto p10   = static_cast<U>(a_hi) * b_lo;
+      auto carry = ((p00 >> 64) + static_cast<U>(static_cast<unsigned long long>(p01)) +
+                    static_cast<U>(static_cast<unsigned long long>(p10))) >>
+                   64;
+      bool overflow =
+        (a_hi != 0 && b_hi != 0) | ((p01 >> 64) != 0) | ((p10 >> 64) != 0) | (carry != 0);
+      return {result, overflow};
+    }
+  }
 }
 
 template <detail::overflow_integer T>
@@ -150,7 +299,13 @@ constexpr overflow_result<T> mod_overflow(T a, T b)
 template <detail::overflow_integer T>
 constexpr overflow_result<T> neg_overflow(T a)
 {
-  return sub_overflow(T(0), a);
+  if constexpr (std::is_signed_v<T>) {
+    using U     = __make_unsigned(T);
+    auto result = static_cast<T>(U(0) - static_cast<U>(a));
+    return {result, a == detail::integer_bounds<T>::lowest()};
+  } else {
+    return sub_overflow(T(0), a);
+  }
 }
 
 template <detail::overflow_integer T>
