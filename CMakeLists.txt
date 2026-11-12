@@ -80,7 +80,7 @@ target_include_directories(hash PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_
 
 add_library(rtcx STATIC
             src/rtcx.cpp src/algorithm_launcher.cpp src/algorithm_planner.cpp
-            src/fragment_entry.cpp src/nvjitlink_checker.cpp src/nvrtc_lto_fragment_compiler.cpp)
+            src/fragment_entry.cpp src/nvrtc_lto_fragment_compiler.cpp)
 add_library(rtcx::rtcx ALIAS rtcx)
 
 set_target_properties(rtcx
