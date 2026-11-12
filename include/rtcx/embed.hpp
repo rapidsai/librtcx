@@ -211,7 +211,7 @@ std::string generate_template_get_functions(std::size_t file_count,
   for (std::size_t index = 0; index < file_count; ++index) {
     functions += std::format(R"(
 template <>
-inline auto get<{}>()
+inline auto const& get<{}>()
 {{
   return get({});
 }}
@@ -224,7 +224,7 @@ inline auto get<{}>()
     if (file_tags[index] == "__rtcx_no_tag__") { continue; }
     functions += std::format(R"(
 template <>
-inline auto get<"{}">()
+inline auto const& get<"{}">()
 {{
   return get<{}>();
 }}
@@ -303,18 +303,26 @@ embed_output generate_cxx_source_files_data(std::string_view id,
   auto hash_list = join_formatted(
     hash, ", ", [](uint8_t byte) { return std::format("0x{:02x}", static_cast<unsigned>(byte)); });
   auto arrays_list    = generate_arrays(array_ids, array_values);
-  auto get_function   = compress ? R"(
-static inline auto get(std::size_t index)
+  auto get_function   = compress
+                          ? std::string{R"(
+static inline auto const& get(std::size_t index)
 {
   return file_ranges[index];
 }
-)"
-                                 : R"(
-static inline auto get(std::size_t index)
-{
-  return file_ranges[index](files);
-}
-)";
+)"}
+                          : std::format(R"(
+static inline auto const& get(std::size_t index)
+{{
+  static std::span<std::uint8_t const> const spans[] =
+  {{
+{}
+  }};
+  return spans[index];
+}}
+)",
+                                      join_formatted(file_indices, ",\n", [](auto index) {
+                                        return std::format("    file_ranges[{}](files)", index);
+                                      }));
 
   auto template_get_functions = generate_template_get_functions(file_ranges.size(), file_tags);
 
@@ -384,10 +392,10 @@ static std::span<std::uint8_t const> const files =
 {}
 
 template <std::size_t Index>
-static inline auto get();
+static inline auto const& get();
 
 template <tag_t Tag>
-static inline auto get();
+static inline auto const& get();
 
 {}
 

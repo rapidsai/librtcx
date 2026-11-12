@@ -255,14 +255,14 @@ auto by_id = sample_embed::get<sample_embed::sample_kernel>();
 auto by_tag = sample_embed::get<"sample/kernel">();
 ```
 
-For `COMPRESSION none`, `get(index)` returns a `std::span<std::uint8_t const>` over
+For `COMPRESSION none`, `get(index)` returns a const reference to a cached `std::span<std::uint8_t const>` over
 the selected file's bytes, excluding its appended null terminator. Pass a valid
 file ID from the generated namespace. For compressed embeds, `get(index)` returns
-a `range_t` containing `{offset, size}` from `file_ranges`. These offsets refer to
+a const reference to the `range_t` containing `{offset, size}` in `file_ranges`. These offsets refer to
 the decompressed bytes; decompress `files` before applying the range. Call
 `range(bytes)` on a span to obtain its subspan.
 
-The template overloads return the same span or range as `get(index)`, and reject
+The template overloads return the same const reference as `get(index)`, and reject
 out-of-range IDs and unknown tags at compile time. `TAG` is optional and separate
 from `ID`; each nonempty tag must be unique within its embed target. Tags may
 contain characters such as `/` that are not valid in C++ identifiers. Files
