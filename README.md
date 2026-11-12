@@ -246,8 +246,11 @@ Each blob ID becomes an index in the generated namespace:
 #include "sample_embed.hpp"
 #include <rtcx/rtcx.hpp>
 
-auto &range = sample_embed::file_ranges[sample_embed::sample_kernel];
-auto library =
-    rtcx::load_library({sample_embed::files.data() + range[0], range[1]});
+auto library = rtcx::load_library(sample_embed::get(sample_embed::sample_kernel));
 auto kernel = library->get_kernel("sample_kernel");
 ```
+
+For `COMPRESSION none`, `get(index)` returns a `std::span<std::uint8_t const>` over
+the selected file's bytes, excluding its appended null terminator. Pass a valid
+file ID from the generated namespace. This helper is not generated for compressed
+embeds; decompress those bytes before using `file_ranges`.

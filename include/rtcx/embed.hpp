@@ -269,6 +269,13 @@ embed_output generate_cxx_source_files_data(std::string_view id,
     hash, ", ", [](uint8_t byte) { return std::format("0x{:02x}", static_cast<unsigned>(byte)); });
   auto arrays_list    = generate_arrays(array_ids, array_values);
   auto namespace_decl = "namespace " + std::string(id);
+  auto get_function   = compress ? "" : R"(
+// The index must be a valid file ID. The span excludes the appended null terminator.
+static inline std::span<std::uint8_t const> get(std::size_t index)
+{
+  return files.subspan(file_ranges[index][0], file_ranges[index][1]);
+}
+)";
 
   auto cxx_header = std::format(
     R"***(
@@ -317,6 +324,8 @@ static std::span<std::uint8_t const> const files =
 {}L
 }};
 
+{}
+
 constexpr std::uint8_t hash[{}] =
 {{
 {}
@@ -341,6 +350,7 @@ constexpr std::uint8_t hash[{}] =
     id,
     id,
     binary_size,
+    get_function,
     hash.size(),
     hash_list,
     arrays_list);
