@@ -864,6 +864,21 @@ struct cache_t {  // NOLINT
 [[nodiscard]] std::int32_t nvrtc_version();
 
 /**
+ * @brief Configure the NVRTC precompiled-header heap size, in bytes.
+ *
+ * Zero disables PCH. Has no effect with NVRTC older than 12.8.
+ * @param size Requested heap size in bytes
+ */
+void set_nvrtc_pch_heap_size(std::size_t size);
+
+/**
+ * @brief Get the effective NVRTC precompiled-header heap size, in bytes.
+ *
+ * @return Heap size in bytes, or zero if PCH is disabled or NVRTC is older than 12.8
+ */
+[[nodiscard]] std::size_t get_nvrtc_pch_heap_size();
+
+/**
  * @brief Get the version of the NVJITLINK library
  * @return An integer representing the NVJITLINK version. With the encoding major * 1000 + minor *
  * 10 + patch
