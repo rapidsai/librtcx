@@ -269,7 +269,13 @@ embed_output generate_cxx_source_files_data(std::string_view id,
     hash, ", ", [](uint8_t byte) { return std::format("0x{:02x}", static_cast<unsigned>(byte)); });
   auto arrays_list    = generate_arrays(array_ids, array_values);
   auto namespace_decl = "namespace " + std::string(id);
-  auto get_function   = compress ? "" : R"(
+  auto get_function   = compress ? R"(
+// The index must be a valid file ID. The range is {offset, size} in the decompressed bytes.
+static inline constexpr std::size_t const (&get(std::size_t index))[2]
+{
+  return file_ranges[index];
+}
+)" : R"(
 // The index must be a valid file ID. The span excludes the appended null terminator.
 static inline std::span<std::uint8_t const> get(std::size_t index)
 {

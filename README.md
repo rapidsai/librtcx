@@ -252,5 +252,6 @@ auto kernel = library->get_kernel("sample_kernel");
 
 For `COMPRESSION none`, `get(index)` returns a `std::span<std::uint8_t const>` over
 the selected file's bytes, excluding its appended null terminator. Pass a valid
-file ID from the generated namespace. This helper is not generated for compressed
-embeds; decompress those bytes before using `file_ranges`.
+file ID from the generated namespace. For compressed embeds, `get(index)` returns
+a reference to the `{offset, size}` array in `file_ranges`. These offsets refer to
+the decompressed bytes; decompress `files` before applying the range.
