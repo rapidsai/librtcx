@@ -20,6 +20,7 @@ project(rtcx VERSION 0.1.0 LANGUAGES CXX)
 
 option(RTCX_STATIC_LINK_NVRTC "Use static linking for NVRTC" OFF)
 option(RTCX_STATIC_LINK_NVJITLINK "Use static linking for nvJitLink" OFF)
+option(RTCX_BUILD_TESTS "Build rtcx tests" OFF)
 
 rapids_find_package(CUDAToolkit 12.9 REQUIRED BUILD_EXPORT_SET rtcx-exports INSTALL_EXPORT_SET
                     rtcx-exports)
@@ -109,6 +110,11 @@ if(RTCX_STATIC_LINK_NVJITLINK)
 else()
   target_link_libraries(rtcx PRIVATE CUDA::nvJitLink)
   target_compile_definitions(rtcx PRIVATE RTCX_STATIC_LINK_LIBNVJITLINK=0)
+endif()
+
+if(RTCX_BUILD_TESTS)
+  enable_testing()
+  add_subdirectory(tests)
 endif()
 
 # =============================================================================

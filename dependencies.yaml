@@ -1,0 +1,146 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Dependency list for https://github.com/rapidsai/dependency-file-generator
+files:
+  all:
+    output: conda
+    matrix:
+      cuda: ["12.9", "13.4"]
+      arch: [x86_64, aarch64]
+    includes:
+      - build
+      - checks
+      - cuda
+      - cuda_version
+  checks:
+    output: none
+    includes:
+      - checks
+  test_cpp:
+    output: none
+    includes:
+      - build
+      - cuda
+      - cuda_version
+  test_cmake:
+    output: none
+    includes:
+      - build
+      - cuda
+      - cuda_version
+      - test_cmake
+channels:
+  - rapidsai-nightly
+  - rapidsai
+  - conda-forge
+dependencies:
+  build:
+    common:
+      - output_types: conda
+        packages:
+          - cmake>=4.0
+          - ninja
+          - c-compiler
+          - cxx-compiler
+          - cuda-nvcc
+    specific:
+      - output_types: conda
+        matrices:
+          - matrix:
+              arch: x86_64
+            packages:
+              - gcc_linux-64=14.*
+              - sysroot_linux-64==2.28
+          - matrix:
+              arch: aarch64
+            packages:
+              - gcc_linux-aarch64=14.*
+              - sysroot_linux-aarch64==2.28
+  checks:
+    common:
+      - output_types: conda
+        packages:
+          - cmake>=4.0
+          - pre-commit
+          # pre-commit requires identify minimum version 1.0, but clang-format
+          # requires textproto support and that was added in 2.5.20, so we need
+          # to call out the minimum version needed for our plugins
+          - identify>=2.5.20
+          - doxygen=1.9.1
+  test_cmake:
+    common:
+      - output_types: conda
+        packages:
+          - xxhash
+  cuda:
+    common:
+      - output_types: conda
+        packages:
+          - cuda-cudart-dev
+          - cuda-nvrtc-dev
+          - cuda-nvrtc-static
+    specific:
+      # A statically linked nvJitLink must match the toolkit's nvptxcompiler.
+      - output_types: conda
+        matrices:
+          - matrix:
+              cuda: "12.9"
+            packages:
+              - libnvjitlink-dev=12.9.*
+              - libnvjitlink-static=12.9.*
+          - matrix:
+              cuda: "13.0"
+            packages:
+              - libnvjitlink-dev=13.0.*
+              - libnvjitlink-static=13.0.*
+          - matrix:
+              cuda: "13.1"
+            packages:
+              - libnvjitlink-dev=13.1.*
+              - libnvjitlink-static=13.1.*
+          - matrix:
+              cuda: "13.2"
+            packages:
+              - libnvjitlink-dev=13.2.*
+              - libnvjitlink-static=13.2.*
+          - matrix:
+              cuda: "13.3"
+            packages:
+              - libnvjitlink-dev=13.3.*
+              - libnvjitlink-static=13.3.*
+          - matrix:
+              cuda: "13.4"
+            packages:
+              - libnvjitlink-dev=13.4.*
+              - libnvjitlink-static=13.4.*
+  # 'cuda_version' intentionally does not contain fallback entries... we want
+  # a loud error if an unsupported 'cuda' value is passed
+  cuda_version:
+    specific:
+      - output_types: conda
+        matrices:
+          - matrix:
+              cuda: "12.9"
+            packages:
+              - cuda-version=12.9
+          - matrix:
+              cuda: "13.0"
+            packages:
+              - cuda-version=13.0
+          - matrix:
+              cuda: "13.1"
+            packages:
+              - cuda-version=13.1
+          - matrix:
+              cuda: "13.2"
+            packages:
+              - cuda-version=13.2
+          - matrix:
+              cuda: "13.3"
+            packages:
+              - cuda-version=13.3
+          - matrix:
+              cuda: "13.4"
+            packages:
+              - cuda-version=13.4
