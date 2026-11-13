@@ -2,7 +2,6 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-# Usage: ci/test_cpp.sh [extra CMake arguments...]
 set -euo pipefail
 
 # Support invoking test_cpp.sh outside the script directory
@@ -33,7 +32,7 @@ rapids-print-env
 nvidia-smi
 
 rapids-logger "Build librtcx tests"
-cmake -S . -B build -GNinja -DRTCX_BUILD_TESTS=ON "$@"
+cmake -S . -B build -GNinja -DRTCX_BUILD_TESTS=ON
 cmake --build build
 
 rapids-logger "Run librtcx tests"

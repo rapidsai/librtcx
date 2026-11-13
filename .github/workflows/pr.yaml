@@ -62,18 +62,9 @@ jobs:
       packages: read
       pull-requests: read
     secrets: inherit # zizmor: ignore[secrets-inherit]
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { ARCH: "amd64", CUDA_VER: "12.9.2", LINUX_VER: "rockylinux8", PY_VER: "3.12", GPU: "v100", DRIVER: "earliest", CMAKE_ARGS: "" }
-          - { ARCH: "amd64", CUDA_VER: "13.4.3", LINUX_VER: "ubuntu26.04", PY_VER: "3.13", GPU: "rtxpro6000", DRIVER: "latest", CMAKE_ARGS: "" }
-          - { ARCH: "arm64", CUDA_VER: "12.9.2", LINUX_VER: "ubuntu22.04", PY_VER: "3.14", GPU: "l4", DRIVER: "latest", CMAKE_ARGS: "-DRTCX_STATIC_LINK_NVRTC=ON -DRTCX_STATIC_LINK_NVJITLINK=ON" }
-          - { ARCH: "arm64", CUDA_VER: "13.0.3", LINUX_VER: "rockylinux8", PY_VER: "3.14", GPU: "a100", DRIVER: "latest", CMAKE_ARGS: "-DRTCX_STATIC_LINK_NVRTC=ON -DRTCX_STATIC_LINK_NVJITLINK=ON" }
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@main
     with:
       build_type: pull-request
-      node_type: "gpu-${{ matrix.GPU }}-${{ matrix.DRIVER }}-1"
-      arch: "${{ matrix.ARCH }}"
-      container_image: "rapidsai/ci-conda:27.02-cuda${{ matrix.CUDA_VER }}-${{ matrix.LINUX_VER }}-py${{ matrix.PY_VER }}"
-      script: "ci/test_cpp.sh ${{ matrix.CMAKE_ARGS }}"
+      script: ci/test_cpp.sh
+      # librtcx requires CUDA 12.9+ to build.
+      matrix_filter: map(select(.CUDA_VER | split(".") | map(tonumber) >= [12, 9]))
