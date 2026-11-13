@@ -12,7 +12,7 @@ RTCX (runtime-compiler extended) is a C++20 wrapper around NVRTC and nvJitLink. 
 - Linux
 
 ## Build-time Requirements
-- CMake >= 4.0
+- CMake >= 4.3
 - libzstd and xxHash (fetched and bundled into librtcx at build time; not required by consumers)
 - CUDA >= 12.9
 
@@ -161,7 +161,7 @@ int main() {
 The embedding utilities can help package CUDA headers into an executable:
 
 ```cmake
-cmake_minimum_required(VERSION 4.0)
+cmake_minimum_required(VERSION 4.3)
 project(sample LANGUAGES CXX ASM)
 
 find_package(rtcx CONFIG REQUIRED)
