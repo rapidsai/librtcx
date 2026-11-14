@@ -199,15 +199,11 @@ void log_error(std::string_view msg)
   DO_IT(AddNameExpression)         \
   DO_IT(GetLoweredName)
 
-#define MIN_RUNTIME_PCH 12080
+#define MIN_PCH_CUDA_VERSION 12080
 
-#if CUDA_VERSION >= MIN_RUNTIME_PCH
 #define FOR_EACH_NVRTC_PCH_FUNC(DO_IT) \
   DO_IT(GetPCHHeapSize)                \
   DO_IT(SetPCHHeapSize)
-#else
-#define FOR_EACH_NVRTC_PCH_FUNC(DO_IT)
-#endif
 
 #define FOR_EACH_NVJITLINK_FUNC(DO_IT) \
   DO_IT(Version)                       \
@@ -405,13 +401,11 @@ struct LibNVRTC {
 #endif
 
     FOR_EACH_NVRTC_FUNC(DO_IT)
-#if CUDA_VERSION >= MIN_RUNTIME_PCH
     int major{}, minor{};
     RTCX_EXPECTS(Version(&major, &minor) == NVRTC_SUCCESS,
                  "Unable to query NVRTC version",
                  std::runtime_error);
-    if (make_cuda_version(major, minor) >= MIN_RUNTIME_PCH) { FOR_EACH_NVRTC_PCH_FUNC(DO_IT) }
-#endif
+    if (make_cuda_version(major, minor) >= MIN_PCH_CUDA_VERSION) { FOR_EACH_NVRTC_PCH_FUNC(DO_IT) }
 #undef DO_IT
   }
 };
@@ -695,25 +689,17 @@ std::int32_t nvrtc_version()
 void set_nvrtc_pch_heap_size(std::size_t size)
 {
   RTCX_FUNC_RANGE();
-#if CUDA_VERSION >= MIN_RUNTIME_PCH
-  if (nvrtc_version() < MIN_RUNTIME_PCH) { return; }
+  if (nvrtc_version() < MIN_PCH_CUDA_VERSION) { return; }
   RTCX_CHECK_NVRTC(nvrtc->SetPCHHeapSize(size));
-#else
-  static_cast<void>(size);
-#endif
 }
 
 std::size_t get_nvrtc_pch_heap_size()
 {
   RTCX_FUNC_RANGE();
-#if CUDA_VERSION >= MIN_RUNTIME_PCH
-  if (nvrtc_version() < MIN_RUNTIME_PCH) { return 0; }
+  if (nvrtc_version() < MIN_PCH_CUDA_VERSION) { return 0; }
   std::size_t size{};
   RTCX_CHECK_NVRTC(nvrtc->GetPCHHeapSize(&size));
   return size;
-#else
-  return 0;
-#endif
 }
 
 std::int32_t nvjitlink_version()
