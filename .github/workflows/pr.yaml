@@ -10,9 +10,11 @@ permissions: {}
 jobs:
   pr-builder:
     needs:
+      - build-details
       - checks
       - cmake-tests
-      - cpp-tests
+      - conda-cpp-build
+      - conda-cpp-tests
     permissions:
       actions: read
       contents: read
@@ -24,6 +26,8 @@ jobs:
     if: always()
     with:
       needs: ${{ toJSON(needs) }}
+  build-details:
+    uses: rapidsai/shared-workflows/.github/workflows/compute-build-details.yaml@main
   checks:
     permissions:
       actions: read
@@ -53,8 +57,24 @@ jobs:
       arch: "amd64"
       container_image: "rapidsai/ci-conda:27.02-latest"
       script: "ci/test_cmake.sh"
-  cpp-tests:
-    needs: checks
+  conda-cpp-build:
+    needs: [build-details, checks]
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
+    secrets: inherit # zizmor: ignore[secrets-inherit]
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@main
+    with:
+      build_type: pull-request
+      build-datetime: ${{ needs.build-details.outputs.build-datetime }}
+      node_type: cpu8
+      script: ci/build_cpp.sh
+      matrix_type: pull-request
+  conda-cpp-tests:
+    needs: conda-cpp-build
     permissions:
       actions: read
       contents: read
@@ -66,5 +86,4 @@ jobs:
     with:
       build_type: pull-request
       script: ci/test_cpp.sh
-      # librtcx requires CUDA 12.9+ to build.
-      matrix_filter: map(select(.CUDA_VER | split(".") | map(tonumber) >= [12, 9]))
+      matrix_type: pull-request

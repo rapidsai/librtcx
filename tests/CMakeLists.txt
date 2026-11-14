@@ -7,6 +7,9 @@
 
 enable_language(ASM)
 
+include(rapids-test)
+rapids_test_init()
+
 include(${rapids-cmake-dir}/cpm/gtest.cmake)
 rapids_cpm_gtest(BUILD_STATIC)
 
@@ -28,8 +31,11 @@ rtcx_embed(rtcx_test_embed COMPRESSION none
 
 add_executable(rtcx_test rtcx_test.cpp "${rtcx_test_embed_SOURCE_DIR}/rtcx_test_embed.s")
 add_dependencies(rtcx_test rtcx_test_embed)
-set_target_properties(rtcx_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED YES)
+set_target_properties(rtcx_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED YES
+                                           INSTALL_RPATH "\$ORIGIN/../../../lib")
 target_include_directories(rtcx_test PRIVATE "${rtcx_test_embed_INCLUDE_DIRS}")
 target_link_libraries(rtcx_test PRIVATE rtcx::rtcx CUDA::cudart GTest::gtest_main)
 
-add_test(NAME rtcx_test COMMAND rtcx_test)
+rapids_test_add(NAME rtcx_test COMMAND rtcx_test GPUS 1 INSTALL_COMPONENT_SET testing)
+
+rapids_test_install_relocatable(INSTALL_COMPONENT_SET testing DESTINATION bin/gtests/librtcx)
