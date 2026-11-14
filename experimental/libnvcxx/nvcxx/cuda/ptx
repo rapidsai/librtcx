@@ -1,0 +1,32 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#include <nvcxx/cuda/detail/config>
+#include <nvcxx/cuda/std/type_traits>
+
+namespace nvcxx::ptx {
+
+template <typename T = void>
+__device__ inline bool elect_sync(unsigned const& mask)
+  requires(__CUDA_ARCH__ >= 900)
+{
+#if __CUDA_ARCH__ >= 900
+  unsigned elected;
+  asm volatile(
+    "{\n\t"
+    ".reg .pred leader;\n\t"
+    "elect.sync _|leader, %1;\n\t"
+    "selp.b32 %0, 1, 0, leader;\n\t"
+    "}"
+    : "=r"(elected)
+    : "r"(mask));
+  return static_cast<bool>(elected);
+#else
+  return false;
+#endif
+}
+
+}  // namespace nvcxx::ptx

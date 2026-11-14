@@ -1,0 +1,19 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#include <nvcxx/cuda/detail/config>
+
+namespace nvcxx::std {
+
+template <class T>
+constexpr void swap(T& a, T& b)
+{
+  T t = ::std::move(a);
+  a   = ::std::move(b);
+  b   = ::std::move(t);
+}
+
+}  // namespace nvcxx::std

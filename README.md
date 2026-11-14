@@ -7,6 +7,7 @@ RTCX (runtime-compiler extended) is a C++20 wrapper around NVRTC and nvJitLink. 
 - CMake utilities for embedding optionally compressed headers and binary artifacts
 - Explicit loading and unloading of `libcuda`, `libnvrtc`, and `libnvJitLink`
 - Composition-oriented APIs that leave policy decisions to the application
+- Fast minimal CUDA C++ standard library optimized for JIT compilation
 
 ## Platforms Supported
 - Linux

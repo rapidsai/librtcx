@@ -1,0 +1,403 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#include <nvcxx/cuda/detail/config>
+#include <nvcxx/cuda/std/ratio>
+#include <nvcxx/cuda/std/type_traits>
+
+namespace nvcxx::std::chrono {
+
+template <class Rep, class Period = rational<1>>
+class duration;
+
+template <class Clock, class Duration = duration<long long>>
+class time_point;
+
+namespace detail {
+
+constexpr long long period_gcd(long long a, long long b)
+{
+  while (b != 0) {
+    auto remainder = a % b;
+    a              = b;
+    b              = remainder;
+  }
+  return a;
+}
+
+template <class P>
+struct normalized_period {
+  static_assert(P::num > 0 && P::den > 0, "duration period must be positive");
+
+  static constexpr auto divisor = period_gcd(P::num, P::den);
+
+  using type = rational<P::num / divisor, P::den / divisor>;
+};
+
+template <class P1, class P2>
+struct common_period {
+  using A = typename normalized_period<P1>::type;
+  using B = typename normalized_period<P2>::type;
+
+  static constexpr auto denominator =
+    static_cast<__int128>(A::den / period_gcd(A::den, B::den)) * B::den;
+
+  static_assert(denominator <= 0x7fffffffffffffffLL, "common duration period is out of range");
+
+  using type = rational<period_gcd(A::num, B::num), static_cast<long long>(denominator)>;
+};
+
+template <class From, class To>
+struct period_scale {
+  using A = typename normalized_period<From>::type;
+  using B = typename normalized_period<To>::type;
+
+  static constexpr auto numerator_gcd   = period_gcd(A::num, B::num);
+  static constexpr auto denominator_gcd = period_gcd(A::den, B::den);
+  static constexpr auto num =
+    static_cast<__int128>(A::num / numerator_gcd) * (B::den / denominator_gcd);
+  static constexpr auto den =
+    static_cast<__int128>(A::den / denominator_gcd) * (B::num / numerator_gcd);
+};
+
+template <class T>
+inline constexpr bool is_duration = false;
+
+template <class R, class P>
+inline constexpr bool is_duration<duration<R, P>> = true;
+
+template <class R, class S>
+concept duration_scalar = !is_duration<__remove_cvref(S)> && requires(R r, S s) {
+  false ? r : s;
+} && __is_convertible_to(S const&, common_type_t<R, S>);
+
+}  // namespace detail
+
+}  // namespace nvcxx::std::chrono
+
+namespace nvcxx::std {
+
+template <class R1, class P1, class R2, class P2>
+struct common_type<chrono::duration<R1, P1>, chrono::duration<R2, P2>> {
+  using type =
+    chrono::duration<common_type_t<R1, R2>, typename chrono::detail::common_period<P1, P2>::type>;
+};
+
+template <class Clock, class D1, class D2>
+struct common_type<chrono::time_point<Clock, D1>, chrono::time_point<Clock, D2>> {
+  using type = chrono::time_point<Clock, common_type_t<D1, D2>>;
+};
+
+}  // namespace nvcxx::std
+
+namespace nvcxx::std::chrono {
+
+template <class To, class R, class P>
+  requires detail::is_duration<To>
+constexpr To duration_cast(duration<R, P> d);
+
+template <class Rep, class Period>
+class duration {
+  Rep count_{};
+
+ public:
+  using rep    = Rep;
+  using period = typename detail::normalized_period<Period>::type;
+
+  constexpr duration() = default;
+
+  template <class R>
+    requires(__is_convertible_to(R const&, Rep) &&
+             (is_floating_point_v<Rep> || !is_floating_point_v<R>))
+  constexpr explicit duration(R const& r) : count_{static_cast<Rep>(r)}
+  {
+  }
+
+  template <class R, class P>
+    requires(is_floating_point_v<Rep> ||
+             (!is_floating_point_v<R> && detail::period_scale<P, period>::den == 1))
+  constexpr duration(duration<R, P> d) : count_{duration_cast<duration>(d).count()}
+  {
+  }
+
+  constexpr Rep count() const { return count_; }
+
+  constexpr duration operator+() const { return *this; }
+
+  constexpr duration operator-() const { return duration{-count_}; }
+
+  constexpr duration& operator+=(duration d)
+  {
+    count_ += d.count_;
+    return *this;
+  }
+
+  constexpr duration& operator-=(duration d)
+  {
+    count_ -= d.count_;
+    return *this;
+  }
+
+  constexpr duration& operator*=(Rep scalar)
+  {
+    count_ *= scalar;
+    return *this;
+  }
+
+  constexpr duration& operator/=(Rep scalar)
+  {
+    count_ /= scalar;
+    return *this;
+  }
+
+  constexpr duration& operator%=(Rep scalar)
+  {
+    count_ %= scalar;
+    return *this;
+  }
+
+  constexpr duration& operator%=(duration d)
+  {
+    count_ %= d.count_;
+    return *this;
+  }
+};
+
+template <class To, class R, class P>
+  requires detail::is_duration<To>
+constexpr To duration_cast(duration<R, P> d)
+{
+  using Scale = detail::period_scale<P, typename To::period>;
+  using Rep   = typename To::rep;
+  // Preserve the existing wide intermediate for integral conversions.
+  using C = conditional_t<is_integral_v<R> && is_integral_v<Rep>,
+                          common_type_t<R, Rep, __int128>,
+                          common_type_t<R, Rep, long long>>;
+  if constexpr (Scale::num == 1 && Scale::den == 1)
+    return To{static_cast<Rep>(d.count())};
+  else if constexpr (Scale::num == 1)
+    return To{static_cast<Rep>(static_cast<C>(d.count()) / static_cast<C>(Scale::den))};
+  else if constexpr (Scale::den == 1)
+    return To{static_cast<Rep>(static_cast<C>(d.count()) * static_cast<C>(Scale::num))};
+  else
+    return To{static_cast<Rep>(static_cast<C>(d.count()) * static_cast<C>(Scale::num) /
+                               static_cast<C>(Scale::den))};
+}
+
+template <class R1, class P1, class R2, class P2>
+constexpr auto operator+(duration<R1, P1> a, duration<R2, P2> b)
+{
+  using D = common_type_t<duration<R1, P1>, duration<R2, P2>>;
+  return D{D{a}.count() + D{b}.count()};
+}
+
+template <class R1, class P1, class R2, class P2>
+constexpr auto operator-(duration<R1, P1> a, duration<R2, P2> b)
+{
+  using D = common_type_t<duration<R1, P1>, duration<R2, P2>>;
+  return D{D{a}.count() - D{b}.count()};
+}
+
+template <class R, class P, class S>
+  requires detail::duration_scalar<R, S>
+constexpr auto operator*(duration<R, P> d, S scalar)
+{
+  using C = common_type_t<R, S>;
+  return duration<C, P>{static_cast<C>(d.count()) * static_cast<C>(scalar)};
+}
+
+template <class S, class R, class P>
+  requires detail::duration_scalar<R, S>
+constexpr auto operator*(S scalar, duration<R, P> d)
+{
+  return d * scalar;
+}
+
+template <class R, class P, class S>
+  requires detail::duration_scalar<R, S>
+constexpr auto operator/(duration<R, P> d, S scalar)
+{
+  using C = common_type_t<R, S>;
+  return duration<C, P>{static_cast<C>(d.count()) / static_cast<C>(scalar)};
+}
+
+template <class R1, class P1, class R2, class P2>
+constexpr auto operator/(duration<R1, P1> a, duration<R2, P2> b)
+{
+  using D = common_type_t<duration<R1, P1>, duration<R2, P2>>;
+  return D{a}.count() / D{b}.count();
+}
+
+template <class R, class P, class S>
+  requires detail::duration_scalar<R, S>
+constexpr auto operator%(duration<R, P> d, S scalar)
+{
+  using C = common_type_t<R, S>;
+  return duration<C, P>{static_cast<C>(d.count()) % static_cast<C>(scalar)};
+}
+
+template <class R1, class P1, class R2, class P2>
+constexpr auto operator%(duration<R1, P1> a, duration<R2, P2> b)
+{
+  using D = common_type_t<duration<R1, P1>, duration<R2, P2>>;
+  return D{D{a}.count() % D{b}.count()};
+}
+
+template <class R1, class P1, class R2, class P2>
+constexpr bool operator==(duration<R1, P1> a, duration<R2, P2> b)
+{
+  using D = common_type_t<duration<R1, P1>, duration<R2, P2>>;
+  return D{a}.count() == D{b}.count();
+}
+
+template <class R1, class P1, class R2, class P2>
+constexpr bool operator<(duration<R1, P1> a, duration<R2, P2> b)
+{
+  using D = common_type_t<duration<R1, P1>, duration<R2, P2>>;
+  return D{a}.count() < D{b}.count();
+}
+
+template <class R1, class P1, class R2, class P2>
+constexpr bool operator!=(duration<R1, P1> a, duration<R2, P2> b)
+{
+  return !(a == b);
+}
+
+template <class R1, class P1, class R2, class P2>
+constexpr bool operator>(duration<R1, P1> a, duration<R2, P2> b)
+{
+  return b < a;
+}
+
+template <class R1, class P1, class R2, class P2>
+constexpr bool operator<=(duration<R1, P1> a, duration<R2, P2> b)
+{
+  return !(b < a);
+}
+
+template <class R1, class P1, class R2, class P2>
+constexpr bool operator>=(duration<R1, P1> a, duration<R2, P2> b)
+{
+  return !(a < b);
+}
+
+using days         = duration<int, rational<86400>>;
+using hours        = duration<int, rational<3600>>;
+using minutes      = duration<int, rational<60>>;
+using seconds      = duration<long long>;
+using milliseconds = duration<long long, rational<1, 1000>>;
+using microseconds = duration<long long, rational<1, 1000000>>;
+using nanoseconds  = duration<long long, rational<1, 1000000000>>;
+
+struct system_clock {};
+
+template <class Clock, class Duration>
+class time_point {
+  Duration epoch_{};
+
+ public:
+  using duration = Duration;
+  using rep      = typename duration::rep;
+  using period   = typename duration::period;
+  using clock    = Clock;
+
+  constexpr time_point() = default;
+  constexpr explicit time_point(Duration d) : epoch_{d} {}
+
+  template <class D>
+    requires __is_convertible_to
+  (D, Duration) constexpr time_point(time_point<Clock, D> t) : epoch_{t.time_since_epoch()}
+  {
+  }
+
+  constexpr Duration time_since_epoch() const { return epoch_; }
+
+  constexpr time_point& operator+=(Duration d)
+  {
+    epoch_ += d;
+    return *this;
+  }
+
+  constexpr time_point& operator-=(Duration d)
+  {
+    epoch_ -= d;
+    return *this;
+  }
+};
+
+template <class Clock, class D1, class R, class P>
+constexpr auto operator+(time_point<Clock, D1> t, duration<R, P> d)
+{
+  using D = common_type_t<D1, duration<R, P>>;
+  return time_point<Clock, D>{D{t.time_since_epoch()} + D{d}};
+}
+
+template <class R, class P, class Clock, class D>
+constexpr auto operator+(duration<R, P> d, time_point<Clock, D> t)
+{
+  return t + d;
+}
+
+template <class Clock, class D1, class R, class P>
+constexpr auto operator-(time_point<Clock, D1> t, duration<R, P> d)
+{
+  using D = common_type_t<D1, duration<R, P>>;
+  return time_point<Clock, D>{D{t.time_since_epoch()} - D{d}};
+}
+
+template <class Clock, class D1, class D2>
+constexpr auto operator-(time_point<Clock, D1> a, time_point<Clock, D2> b)
+{
+  return a.time_since_epoch() - b.time_since_epoch();
+}
+
+template <class Clock, class D1, class D2>
+constexpr bool operator==(time_point<Clock, D1> a, time_point<Clock, D2> b)
+{
+  return a.time_since_epoch() == b.time_since_epoch();
+}
+
+template <class Clock, class D1, class D2>
+constexpr bool operator<(time_point<Clock, D1> a, time_point<Clock, D2> b)
+{
+  return a.time_since_epoch() < b.time_since_epoch();
+}
+
+template <class Clock, class D1, class D2>
+constexpr bool operator!=(time_point<Clock, D1> a, time_point<Clock, D2> b)
+{
+  return !(a == b);
+}
+
+template <class Clock, class D1, class D2>
+constexpr bool operator>(time_point<Clock, D1> a, time_point<Clock, D2> b)
+{
+  return b < a;
+}
+
+template <class Clock, class D1, class D2>
+constexpr bool operator<=(time_point<Clock, D1> a, time_point<Clock, D2> b)
+{
+  return !(b < a);
+}
+
+template <class Clock, class D1, class D2>
+constexpr bool operator>=(time_point<Clock, D1> a, time_point<Clock, D2> b)
+{
+  return !(a < b);
+}
+
+template <class To, class Clock, class D>
+  requires detail::is_duration<To>
+constexpr time_point<Clock, To> time_point_cast(time_point<Clock, D> t)
+{
+  return time_point<Clock, To>{duration_cast<To>(t.time_since_epoch())};
+}
+
+template <class D>
+using sys_time = time_point<system_clock, D>;
+
+}  // namespace nvcxx::std::chrono

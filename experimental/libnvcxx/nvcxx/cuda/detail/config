@@ -1,0 +1,23 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#define LIBNVCXX
+#ifdef NVCXX_AS_STD
+
+namespace nvcxx {
+namespace std {
+}
+}  // namespace nvcxx
+
+namespace cuda {
+using namespace nvcxx;
+}
+
+namespace std {
+using namespace nvcxx::std;
+}
+
+#endif

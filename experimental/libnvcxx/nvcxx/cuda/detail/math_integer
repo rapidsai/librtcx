@@ -1,0 +1,24 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#include <nvcxx/cuda/std/type_traits>
+
+namespace nvcxx::detail {
+
+template <class T>
+concept math_integer = std::is_integral_v<T> && !std::is_same_v<T, bool>;
+
+template <math_integer T>
+constexpr bool negative(T value)
+{
+  if constexpr (std::is_signed_v<T>) {
+    return value < 0;
+  } else {
+    return false;
+  }
+}
+
+}  // namespace nvcxx::detail

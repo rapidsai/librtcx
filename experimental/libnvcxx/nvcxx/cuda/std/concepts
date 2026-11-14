@@ -1,0 +1,101 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#include <nvcxx/cuda/detail/config>
+#include <nvcxx/cuda/std/type_traits>
+
+namespace nvcxx::std {
+
+// Type relationships
+
+namespace detail {
+
+template <class T, class U>
+concept same_as_impl = is_same_v<T, U>;
+
+}  // namespace detail
+
+template <class T, class U>
+concept same_as = detail::same_as_impl<T, U> && detail::same_as_impl<U, T>;
+
+template <class T, class U>
+concept convertible_to = is_convertible_v<T, U> && requires { static_cast<U>(declval<T>()); };
+
+// Arithmetic concepts
+
+template <class T>
+concept integral = is_integral_v<T>;
+
+template <class T>
+concept signed_integral = integral<T> && is_signed_v<T>;
+
+template <class T>
+concept unsigned_integral = integral<T> && !signed_integral<T>;
+
+template <class T>
+concept floating_point = is_floating_point_v<T>;
+
+// Construction and assignment concepts
+
+template <class T>
+concept destructible = __is_destructible(T);
+
+template <class T, class... Args>
+concept constructible_from = destructible<T> && is_constructible_v<T, Args...>;
+
+template <class T>
+concept default_initializable = constructible_from<T> && requires {
+  T{};
+  ::new T;
+};
+
+template <class T>
+concept move_constructible = constructible_from<T, T> && convertible_to<T, T>;
+
+template <class T>
+concept copy_constructible =
+  move_constructible<T> && constructible_from<T, T&> && convertible_to<T&, T> &&
+  constructible_from<T, T const&> && convertible_to<T const&, T> &&
+  constructible_from<T, T const> && convertible_to<T const, T>;
+
+// Object concepts
+
+template <class T>
+concept movable = is_object_v<T> && move_constructible<T> && is_move_assignable_v<T>;
+
+template <class T>
+concept copyable = copy_constructible<T> && movable<T> && is_assignable_v<T&, T&> &&
+                   is_copy_assignable_v<T> && is_assignable_v<T&, T const>;
+
+// Comparison concepts
+
+template <class T, class U>
+concept equality_comparable_with = requires(T a, U b) {
+  a == b;
+  a != b;
+  b == a;
+  b != a;
+};
+
+template <class T>
+concept equality_comparable = equality_comparable_with<T, T>;
+
+template <class T, class U>
+concept totally_ordered_with = equality_comparable_with<T, U> && requires(T a, U b) {
+  a < b;
+  a > b;
+  a <= b;
+  a >= b;
+  b < a;
+  b > a;
+  b <= a;
+  b >= a;
+};
+
+template <class T>
+concept totally_ordered = totally_ordered_with<T, T>;
+
+}  // namespace nvcxx::std

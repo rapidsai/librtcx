@@ -1,0 +1,106 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#include <nvcxx/cuda/detail/config>
+
+#ifndef NVCXX_HAS_MAKE_INTEGER_SEQ
+#if defined(__has_builtin)
+#if __has_builtin(__make_integer_seq)
+#define NVCXX_HAS_MAKE_INTEGER_SEQ 1
+#endif
+#endif
+#ifndef NVCXX_HAS_MAKE_INTEGER_SEQ
+#if defined(__CUDACC_RTC__) && \
+  (__CUDACC_VER_MAJOR__ > 13 || (__CUDACC_VER_MAJOR__ == 13 && __CUDACC_VER_MINOR__ >= 3))
+#define NVCXX_HAS_MAKE_INTEGER_SEQ 1
+#else
+#define NVCXX_HAS_MAKE_INTEGER_SEQ 0
+#endif
+#endif
+#endif
+
+namespace nvcxx::std {
+
+template <class T, T... I>
+struct integer_sequence {
+  using value_type = T;
+  static constexpr ::size_t size() { return sizeof...(I); }
+};
+
+namespace detail {
+
+#if NVCXX_HAS_MAKE_INTEGER_SEQ
+
+// NVRTC 13.3 can strip cv qualifiers and leave noncanonical character/bool
+// values in a native pack. Preserve the requested type and normalize values.
+template <class T>
+struct integer_sequence_factory {
+  template <class U, U... I>
+  using type = integer_sequence<T, static_cast<T>(I)...>;
+};
+
+template <class T, T N>
+using make_integer_sequence_unchecked =
+  __make_integer_seq<integer_sequence_factory<T>::template type, T, N>;
+
+#else
+
+template <class Left, class Right>
+struct integer_sequence_concat;
+
+template <class T, T... Left, T... Right>
+struct integer_sequence_concat<integer_sequence<T, Left...>, integer_sequence<T, Right...>> {
+  using type = integer_sequence<T, Left..., static_cast<T>(sizeof...(Left) + Right)...>;
+};
+
+// Split in halves rather than recursing once per element.
+template <class T, T N, bool = (N == 0), bool = (N == 1)>
+struct make_integer_sequence_impl {
+  using left  = typename make_integer_sequence_impl<T, N / 2>::type;
+  using right = typename make_integer_sequence_impl<T, N - N / 2>::type;
+  using type  = typename integer_sequence_concat<left, right>::type;
+};
+
+template <class T, T N>
+struct make_integer_sequence_impl<T, N, true, false> {
+  using type = integer_sequence<T>;
+};
+
+template <class T, T N>
+struct make_integer_sequence_impl<T, N, false, true> {
+  using type = integer_sequence<T, T(0)>;
+};
+
+template <class T, T N>
+using make_integer_sequence_unchecked = typename make_integer_sequence_impl<T, N>::type;
+
+#endif
+
+template <class T, T N, bool = (N >= 0)>
+struct make_integer_sequence_checked {
+  static_assert(N >= 0, "make_integer_sequence requires a non-negative length");
+};
+
+template <class T, T N>
+struct make_integer_sequence_checked<T, N, true> {
+  using type = make_integer_sequence_unchecked<T, N>;
+};
+
+}  // namespace detail
+
+template <class T, T N>
+using make_integer_sequence = typename detail::make_integer_sequence_checked<T, N>::type;
+
+template <::size_t... I>
+using index_sequence = integer_sequence<::size_t, I...>;
+
+template <::size_t N>
+using make_index_sequence = make_integer_sequence<::size_t, N>;
+
+template <class... T>
+using index_sequence_for = make_index_sequence<sizeof...(T)>;
+
+}  // namespace nvcxx::std
