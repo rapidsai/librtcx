@@ -92,6 +92,10 @@ outputs:
       run_exports:
         - ${{ pin_subpackage("librtcx", upper_bound="x.x") }}
       ignore_run_exports:
+        from_package:
+          - cuda-cudart-dev
+          - cuda-nvrtc-dev
+          - libnvjitlink-dev
         by_name:
           - cuda-version
     tests:
@@ -136,6 +140,8 @@ outputs:
       ignore_run_exports:
         from_package:
           - cuda-cudart-dev
+          - cuda-nvrtc-dev
+          - libnvjitlink-dev
         by_name:
           - cuda-nvrtc
           - cuda-version
