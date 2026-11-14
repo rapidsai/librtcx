@@ -1,0 +1,153 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+schema_version: 1
+
+context:
+  version: ${{ env.get("RAPIDS_PACKAGE_VERSION") }}
+  cuda_version: ${{ (env.get("RAPIDS_CUDA_VERSION") | split("."))[:2] | join(".") }}
+  cuda_major: ${{ (env.get("RAPIDS_CUDA_VERSION") | split("."))[0] }}
+  datetime_string: ${{ env.get("RAPIDS_DATETIME_STRING") }}
+  head_rev: ${{ git.head_rev(".")[:8] }}
+
+recipe:
+  name: librtcx-split
+
+source:
+  path: ../../..
+
+outputs:
+  - staging:
+      name: librtcx-build
+    build:
+      script:
+        content: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
+            -DRTCX_BUILD_TESTS=ON
+          cmake --build build --parallel "${PARALLEL_LEVEL}"
+        secrets:
+          - AWS_ACCESS_KEY_ID
+          - AWS_SECRET_ACCESS_KEY
+          - AWS_SESSION_TOKEN
+          - SCCACHE_DIST_AUTH_TOKEN
+        env:
+          CMAKE_C_COMPILER_LAUNCHER: ${{ env.get("CMAKE_C_COMPILER_LAUNCHER") }}
+          CMAKE_CXX_COMPILER_LAUNCHER: ${{ env.get("CMAKE_CXX_COMPILER_LAUNCHER") }}
+          CMAKE_GENERATOR: ${{ env.get("CMAKE_GENERATOR") }}
+          PARALLEL_LEVEL: ${{ env.get("PARALLEL_LEVEL", default="8") }}
+          RAPIDS_ARTIFACTS_DIR: ${{ env.get("RAPIDS_ARTIFACTS_DIR", default="") }}
+          SCCACHE_BUCKET: ${{ env.get("SCCACHE_BUCKET", default="") }}
+          SCCACHE_CONF: ${{ env.get("SCCACHE_CONF", default="") }}
+          SCCACHE_DIST_AUTH_TYPE: ${{ env.get("SCCACHE_DIST_AUTH_TYPE", default="token") }}
+          SCCACHE_DIST_FALLBACK_TO_LOCAL_COMPILE: ${{ env.get("SCCACHE_DIST_FALLBACK_TO_LOCAL_COMPILE", default="false") }}
+          SCCACHE_DIST_MAX_RETRIES: ${{ env.get("SCCACHE_DIST_MAX_RETRIES", default="inf") }}
+          SCCACHE_DIST_REQUEST_TIMEOUT: ${{ env.get("SCCACHE_DIST_REQUEST_TIMEOUT", default="7140") }}
+          SCCACHE_DIST_SCHEDULER_URL: ${{ env.get("SCCACHE_DIST_SCHEDULER_URL", default="") }}
+          SCCACHE_ERROR_LOG: ${{ env.get("SCCACHE_ERROR_LOG", default="/tmp/sccache.log") }}
+          SCCACHE_IDLE_TIMEOUT: ${{ env.get("SCCACHE_IDLE_TIMEOUT", default="0") }}
+          SCCACHE_NO_CACHE: ${{ env.get("SCCACHE_NO_CACHE", default="") }}
+          SCCACHE_RECACHE: ${{ env.get("SCCACHE_RECACHE", default="") }}
+          SCCACHE_REGION: ${{ env.get("SCCACHE_REGION", default="") }}
+          SCCACHE_S3_KEY_PREFIX: librtcx-${{ env.get("RAPIDS_CONDA_ARCH") }}
+          SCCACHE_S3_NO_CREDENTIALS: ${{ env.get("SCCACHE_S3_NO_CREDENTIALS", default="false") }}
+          SCCACHE_S3_PREPROCESSOR_CACHE_KEY_PREFIX: librtcx-${{ env.get("RAPIDS_CONDA_ARCH") }}-cuda${{ cuda_major }}-conda-preprocessor-cache
+          SCCACHE_S3_USE_PREPROCESSOR_CACHE_MODE: ${{ env.get("SCCACHE_S3_USE_PREPROCESSOR_CACHE_MODE", default="true") }}
+          SCCACHE_S3_USE_SSL: ${{ env.get("SCCACHE_S3_USE_SSL", default="true") }}
+          SCCACHE_SERVER_LOG: ${{ env.get("SCCACHE_SERVER_LOG", default="sccache=debug") }}
+    requirements:
+      build:
+        - cmake ${{ cmake_version }}
+        - ninja
+        - ${{ compiler("c") }}
+        - ${{ compiler("cxx") }}
+        - ${{ compiler("cuda") }}
+        - cuda-version =${{ cuda_version }}
+        - ${{ stdlib("c") }}
+      host:
+        - cuda-version =${{ cuda_version }}
+        - cuda-cudart-dev
+        - cuda-nvrtc-dev
+        - libnvjitlink-dev
+
+  - package:
+      name: librtcx
+      version: ${{ version }}
+    inherit: librtcx-build
+    build:
+      string: cuda${{ cuda_major }}_${{ datetime_string }}_${{ head_rev }}
+      script:
+        - cmake --install build
+    requirements:
+      build:
+        - cmake ${{ cmake_version }}
+        - ${{ stdlib("c") }}
+      host:
+        - cuda-version =${{ cuda_version }}
+      run:
+        - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
+        # librtcx is a static library, so consumers link NVRTC and nvJitLink themselves.
+        - cuda-nvrtc-dev
+        - libnvjitlink-dev
+      run_exports:
+        - ${{ pin_subpackage("librtcx", upper_bound="x.x") }}
+      ignore_run_exports:
+        from_package:
+          - cuda-cudart-dev
+          - cuda-nvrtc-dev
+          - libnvjitlink-dev
+        by_name:
+          - cuda-version
+    tests:
+      - script:
+          - "test -f \"${PREFIX}/include/rtcx/rtcx.hpp\""
+    about:
+      homepage: https://github.com/rapidsai/librtcx
+      license: Apache-2.0
+      summary: Shared JIT infrastructure
+
+  - package:
+      name: librtcx-tests
+      version: ${{ version }}
+    inherit: librtcx-build
+    build:
+      string: cuda${{ cuda_major }}_${{ datetime_string }}_${{ head_rev }}
+      script: cmake --install build --component testing
+      dynamic_linking:
+        overlinking_behavior: "error"
+        missing_dso_allowlist:
+          - "libcuda.so.1"
+    requirements:
+      build:
+        - cmake ${{ cmake_version }}
+        - ${{ stdlib("c") }}  # this is here to help with overlinking errors against libm.so.6 and friends
+      host:
+        - ${{ pin_subpackage("librtcx", exact=True) }}
+        - cuda-version =${{ cuda_version }}
+        - cuda-cudart-dev
+        - cuda-nvrtc-dev
+        - libnvjitlink-dev
+      run:
+        - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
+        - ${{ pin_subpackage("librtcx", exact=True) }}
+        - cuda-cudart
+        # The runtime DSO is owned by the platform package, which must be a
+        # direct dependency for rattler-build's linking checks.
+        - cuda-cudart_${{ target_platform }}
+        # rtcx loads NVRTC and nvJitLink with dlopen.
+        - cuda-nvrtc
+        - libnvjitlink
+      ignore_run_exports:
+        from_package:
+          - cuda-cudart-dev
+          - cuda-nvrtc-dev
+          - libnvjitlink-dev
+        by_name:
+          - cuda-nvrtc
+          - cuda-version
+          - libnvjitlink
+          - librtcx
+    about:
+      homepage: https://github.com/rapidsai/librtcx
+      license: Apache-2.0
+      summary: librtcx test executables
