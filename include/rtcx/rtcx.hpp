@@ -906,28 +906,12 @@ struct cache_t {  // NOLINT
 [[nodiscard]] byte_buffer link_library(link_params const& params);
 
 /**
- * @brief Initialize the RTCX library, setting up necessary resources and state for subsequent
- * operations
- * @details This function must be called before using any other functions in the RTCX library. It
- * performs necessary initialization tasks such as setting up CUDA contexts, initializing caches,
- * and preparing any global state required for compilation, linking, and kernel management
- * operations. Failure to call this function before using other RTCX functions may result in
- * undefined behavior or runtime errors.
- * This function is thread-safe.
+ * @brief Eagerly initialize RTCX's shared library context.
+ * @details The context is initialized automatically on first use. Calling this function performs
+ * that initialization eagerly. Repeated calls reuse the same context. Initialization is
+ * thread-safe; a failed initialization can be retried by a subsequent call.
  */
 void initialize();
-
-/**
- * @brief Teardown the RTCX library, releasing any resources and cleaning up state used by the
- * library
- * @details This function should be called when RTCX functionality is no longer needed, such as at
- * the end of the program or when cleaning up resources. It performs necessary cleanup tasks such as
- * releasing CUDA contexts, clearing caches, and resetting any global state used by the library.
- * After calling this function, other RTCX functions should not be used unless initialize() is
- * called again to reinitialize the library.
- * This function is not thread-safe.
- */
-void teardown();
 
 /**
  * @brief Reflect a value of any type into its CUDA string representation
