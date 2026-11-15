@@ -15,8 +15,12 @@ rapids_cpm_gtest(BUILD_STATIC)
 
 if(NOT TARGET xxhash)
   set(CPM_DOWNLOAD_xxhash ON)
-  rapids_cpm_find(xxhash 0.8.3 CPM_ARGS GIT_REPOSITORY https://github.com/Cyan4973/xxHash.git
-                  GIT_TAG v0.8.3 GIT_SHALLOW TRUE DOWNLOAD_ONLY TRUE)
+  rapids_cpm_find(xxhash 0.8.3
+                  CPM_ARGS
+                  GIT_REPOSITORY https://github.com/Cyan4973/xxHash.git
+                  GIT_TAG v0.8.3
+                  GIT_SHALLOW TRUE
+                  DOWNLOAD_ONLY TRUE)
   add_library(xxhash INTERFACE)
   target_include_directories(xxhash INTERFACE "${xxhash_SOURCE_DIR}")
 endif()
