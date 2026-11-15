@@ -46,6 +46,12 @@ if(NOT TARGET zstd)
     target_compile_definitions(libzstd_static PUBLIC ZSTD_STATIC_LINKING_ONLY=0N)
     # suppress warnings from uninitialized variables and redefining ZSTD_STATIC_LINKING_ONLY
     target_compile_options(libzstd_static PRIVATE -w)
+    # Hide the bundled zstd so a shared library linking librtcx.a does not export ZSTD_* symbols.
+    set_target_properties(libzstd_static PROPERTIES C_VISIBILITY_PRESET hidden)
+    target_compile_definitions(libzstd_static
+                               PRIVATE "ZSTDLIB_VISIBLE=__attribute__((visibility(\"hidden\")))"
+                                       "ZSTDERRORLIB_VISIBLE=__attribute__((visibility(\"hidden\")))"
+                                       "ZDICTLIB_VISIBLE=__attribute__((visibility(\"hidden\")))")
     add_library(zstd ALIAS libzstd_static)
     set(rtcx_bundle_zstd ON)
   endif()
