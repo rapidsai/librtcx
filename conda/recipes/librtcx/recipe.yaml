@@ -69,6 +69,7 @@ outputs:
         - cuda-cudart-dev
         - cuda-nvrtc-dev
         - libnvjitlink-dev
+        - nvtx-c
 
   - package:
       name: librtcx
@@ -86,11 +87,11 @@ outputs:
         - cuda-version =${{ cuda_version }}
       run:
         - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
-        # librtcx is a static library, so consumers link NVRTC and nvJitLink themselves.
+        # librtcx is a static library, so consumers link cudart, NVRTC and nvJitLink themselves.
+        - cuda-cudart-dev
         - cuda-nvrtc-dev
         - libnvjitlink-dev
-      run_exports:
-        - ${{ pin_subpackage("librtcx", upper_bound="x.x") }}
+        - nvtx-c
       ignore_run_exports:
         from_package:
           - cuda-cudart-dev
@@ -101,6 +102,10 @@ outputs:
     tests:
       - script:
           - "test -f \"${PREFIX}/include/rtcx/rtcx.hpp\""
+          - "test -f \"${PREFIX}/lib/librtcx.a\""
+          - "test -f \"${PREFIX}/lib/libhash.a\""
+          - "test -f \"${PREFIX}/lib/cmake/rtcx/rtcx-config.cmake\""
+          - "test -f \"${PREFIX}/lib/cmake/rtcx/embed.cmake\""
     about:
       homepage: https://github.com/rapidsai/librtcx
       license: Apache-2.0
@@ -130,10 +135,6 @@ outputs:
       run:
         - ${{ pin_compatible("cuda-version", upper_bound="x", lower_bound="x") }}
         - ${{ pin_subpackage("librtcx", exact=True) }}
-        - cuda-cudart
-        # The runtime DSO is owned by the platform package, which must be a
-        # direct dependency for rattler-build's linking checks.
-        - cuda-cudart_${{ target_platform }}
         # rtcx loads NVRTC and nvJitLink with dlopen.
         - cuda-nvrtc
         - libnvjitlink
