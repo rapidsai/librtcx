@@ -20,7 +20,7 @@ project(rtcx VERSION 0.1.0 LANGUAGES CXX)
 
 option(RTCX_STATIC_LINK_NVRTC "Use static linking for NVRTC" OFF)
 option(RTCX_STATIC_LINK_NVJITLINK "Use static linking for nvJitLink" OFF)
-option(RTCX_BUILD_TESTS "Build rtcx tests" OFF)
+option(RTCX_BUILD_TESTS "Build rtcx tests" ${PROJECT_IS_TOP_LEVEL})
 
 rapids_find_package(CUDAToolkit 12.9 REQUIRED BUILD_EXPORT_SET rtcx-exports INSTALL_EXPORT_SET
                     rtcx-exports)
@@ -94,7 +94,8 @@ set_target_properties(rtcx
 target_include_directories(rtcx PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                            PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
 
-target_link_libraries(rtcx PUBLIC rtcx::hash PRIVATE zstd ${CMAKE_DL_LIBS} nvtx3::nvtx3-cpp)
+target_link_libraries(rtcx PUBLIC rtcx::hash PRIVATE zstd ${CMAKE_DL_LIBS} nvtx3::nvtx3-cpp
+                                                     CUDA::cudart_static)
 
 if(RTCX_STATIC_LINK_NVRTC)
   target_link_libraries(rtcx PRIVATE CUDA::nvrtc_static CUDA::nvrtc_builtins_static)

@@ -34,7 +34,7 @@ add_dependencies(rtcx_test rtcx_test_embed)
 set_target_properties(rtcx_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED YES
                                            INSTALL_RPATH "\$ORIGIN/../../../lib")
 target_include_directories(rtcx_test PRIVATE "${rtcx_test_embed_INCLUDE_DIRS}")
-target_link_libraries(rtcx_test PRIVATE rtcx::rtcx CUDA::cudart GTest::gtest_main)
+target_link_libraries(rtcx_test PRIVATE rtcx::rtcx CUDA::cudart_static GTest::gtest_main)
 
 rapids_test_add(NAME rtcx_test COMMAND rtcx_test GPUS 1 INSTALL_COMPONENT_SET testing)
 
