@@ -12,7 +12,8 @@ project(rtcx_consumer LANGUAGES CXX ASM)
 find_package(rtcx CONFIG REQUIRED)
 
 # rtcx_embed() requires the consumer to provide zstd and xxhash targets.
-add_library(zstd ALIAS zstd::libzstd_static)
+find_package(zstd CONFIG REQUIRED)
+add_library(zstd ALIAS zstd::libzstd_shared)
 find_path(xxhash_INCLUDE_DIR xxhash.h REQUIRED)
 add_library(xxhash INTERFACE)
 target_include_directories(xxhash INTERFACE "${xxhash_INCLUDE_DIR}")

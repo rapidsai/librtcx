@@ -27,14 +27,15 @@ rapids_find_package(CUDAToolkit 12.9 REQUIRED BUILD_EXPORT_SET rtcx-exports
 
 if(NOT TARGET zstd)
   set(CPM_DOWNLOAD_zstd ON)
+  # A zstd fetched here is private to rtcx: its objects are merged into librtcx.a below, so it is
+  # neither exported nor installed.
   rapids_cpm_find(zstd 1.5.7
                   GLOBAL_TARGETS zstd::libzstd_static
-                  BUILD_EXPORT_SET rtcx-exports
-                  INSTALL_EXPORT_SET rtcx-exports
                   CPM_ARGS
                   GIT_REPOSITORY https://github.com/facebook/zstd.git
                   GIT_TAG v1.5.7
                   GIT_SHALLOW FALSE SOURCE_SUBDIR build/cmake
+                  EXCLUDE_FROM_ALL TRUE
                   OPTIONS "ZSTD_BUILD_STATIC ON" "ZSTD_BUILD_SHARED OFF" "ZSTD_BUILD_TESTS OFF"
                           "ZSTD_BUILD_PROGRAMS OFF" "BUILD_SHARED_LIBS OFF")
 
@@ -46,6 +47,7 @@ if(NOT TARGET zstd)
     # suppress warnings from uninitialized variables and redefining ZSTD_STATIC_LINKING_ONLY
     target_compile_options(libzstd_static PRIVATE -w)
     add_library(zstd ALIAS libzstd_static)
+    set(rtcx_bundle_zstd ON)
   endif()
 endif()
 
@@ -81,7 +83,14 @@ set_target_properties(rtcx
 target_include_directories(rtcx PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                            PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
 
-target_link_libraries(rtcx PUBLIC rtcx::hash PRIVATE zstd ${CMAKE_DL_LIBS} nvtx3::nvtx3-cpp
+if(rtcx_bundle_zstd)
+  target_sources(rtcx PRIVATE $<TARGET_OBJECTS:zstd>)
+  target_include_directories(rtcx PRIVATE $<TARGET_PROPERTY:zstd,INTERFACE_INCLUDE_DIRECTORIES>)
+  target_compile_definitions(rtcx PRIVATE $<TARGET_PROPERTY:zstd,INTERFACE_COMPILE_DEFINITIONS>)
+else()
+  target_link_libraries(rtcx PRIVATE zstd)
+endif()
+target_link_libraries(rtcx PUBLIC rtcx::hash PRIVATE ${CMAKE_DL_LIBS} nvtx3::nvtx3-cpp
                                                      CUDA::cudart_static)
 
 if(RTCX_STATIC_LINK_NVRTC)
