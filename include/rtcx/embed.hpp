@@ -39,9 +39,11 @@
 
 namespace rtcx::embed {
 
-struct size_range {
-  size_t offset = 0;
-  size_t size   = 0;
+struct range_t {
+  std::size_t offset = 0;
+  std::size_t size   = 0;
+
+  constexpr auto operator()(auto&& bytes) const { return bytes.subspan(offset, size); }
 };
 
 struct embed_output {
@@ -50,11 +52,11 @@ struct embed_output {
   std::vector<uint8_t> bin_file_data;
 };
 
-std::pair<std::vector<uint8_t>, std::vector<size_range>> merge_bytes_with_null_terminators(
+std::pair<std::vector<uint8_t>, std::vector<range_t>> merge_bytes_with_null_terminators(
   std::span<std::vector<uint8_t> const> bytes_lists)
 {
   std::vector<uint8_t> merged;
-  std::vector<size_range> ranges;
+  std::vector<range_t> ranges;
 
   for (auto& byte_data : bytes_lists) {
     ranges.push_back({merged.size(), byte_data.size()});
@@ -201,6 +203,38 @@ std::string generate_arrays(std::span<std::string_view const> array_ids,
   return result;
 }
 
+std::string generate_template_get_functions(std::size_t file_count,
+                                            std::span<std::string_view const> file_tags)
+{
+  std::string functions;
+
+  for (std::size_t index = 0; index < file_count; ++index) {
+    functions += std::format(R"(
+template <>
+inline auto get<{}>()
+{{
+  return get({});
+}}
+)",
+                             index,
+                             index);
+  }
+
+  for (std::size_t index = 0; index < file_tags.size(); ++index) {
+    if (file_tags[index] == "__rtcx_no_tag__") { continue; }
+    functions += std::format(R"(
+template <>
+inline auto get<"{}">()
+{{
+  return get<{}>();
+}}
+)",
+                             file_tags[index],
+                             index);
+  }
+  return functions;
+}
+
 embed_output generate_cxx_source_files_data(std::string_view id,
                                             std::span<std::string_view const> array_ids,
                                             std::span<std::string_view const> array_values,
@@ -208,7 +242,8 @@ embed_output generate_cxx_source_files_data(std::string_view id,
                                             std::span<std::string_view const> file_paths,
                                             std::span<std::string_view const> file_dsts,
                                             std::span<std::string_view const> include_dirs,
-                                            std::string_view compression)
+                                            std::string_view compression,
+                                            std::span<std::string_view const> file_tags = {})
 {
   std::vector<std::vector<uint8_t>> file_bytes;
   file_bytes.reserve(file_paths.size());
@@ -267,8 +302,21 @@ embed_output generate_cxx_source_files_data(std::string_view id,
     file_ranges, ",\n", [](auto r) { return std::format("{{{}, {}}}", r.offset, r.size); });
   auto hash_list = join_formatted(
     hash, ", ", [](uint8_t byte) { return std::format("0x{:02x}", static_cast<unsigned>(byte)); });
-  auto arrays_list    = generate_arrays(array_ids, array_values);
-  auto namespace_decl = "namespace " + std::string(id);
+  auto arrays_list  = generate_arrays(array_ids, array_values);
+  auto get_function = compress ? R"(
+static inline auto get(std::size_t index)
+{
+  return file_ranges[index];
+}
+)"
+                               : R"(
+static inline auto get(std::size_t index)
+{
+  return file_ranges[index](files);
+}
+)";
+
+  auto template_get_functions = generate_template_get_functions(file_ranges.size(), file_tags);
 
   auto cxx_header = std::format(
     R"***(
@@ -280,8 +328,24 @@ embed_output generate_cxx_source_files_data(std::string_view id,
 #include <span>
 #include <string_view>
 
-{} {{
+namespace {} {{
 
+struct range_t {{
+  std::size_t offset = 0;
+  std::size_t size = 0;
+
+  constexpr auto operator()(auto&& bytes) const {{ return bytes.subspan(offset, size); }}
+}};
+
+template <int N>
+struct tag_t {{
+  char value[N];
+
+  constexpr tag_t(char const (&tag)[N])
+  {{
+    for (int i = 0; i < N; ++i) {{ value[i] = tag[i]; }}
+  }}
+}};
 
 constexpr char const * include_directories[{}] =
 {{
@@ -300,7 +364,7 @@ constexpr char const * file_destinations[{}] =
 {}
 }};
 
-constexpr std::size_t file_ranges[{}][2] =
+constexpr range_t file_ranges[{}] =
 {{
 {}
 }};
@@ -317,6 +381,16 @@ static std::span<std::uint8_t const> const files =
 {}L
 }};
 
+{}
+
+template <std::size_t Index>
+static inline auto get();
+
+template <tag_t Tag>
+static inline auto get();
+
+{}
+
 constexpr std::uint8_t hash[{}] =
 {{
 {}
@@ -326,7 +400,7 @@ constexpr std::uint8_t hash[{}] =
 
 }}
 )***",
-    namespace_decl,
+    id,
     include_dirs.size(),
     include_dirs_list,
     file_indices_list,
@@ -341,6 +415,8 @@ constexpr std::uint8_t hash[{}] =
     id,
     id,
     binary_size,
+    get_function,
+    template_get_functions,
     hash.size(),
     hash_list,
     arrays_list);
@@ -370,10 +446,18 @@ void generate_embed(std::string_view id,
                     std::span<std::string_view const> file_dsts,
                     std::span<std::string_view const> include_dirs,
                     std::string_view compression,
-                    std::string_view output_directory)
+                    std::string_view output_directory,
+                    std::span<std::string_view const> file_tags)
 {
-  auto output = generate_cxx_source_files_data(
-    id, array_ids, array_values, file_ids, file_paths, file_dsts, include_dirs, compression);
+  auto output = generate_cxx_source_files_data(id,
+                                               array_ids,
+                                               array_values,
+                                               file_ids,
+                                               file_paths,
+                                               file_dsts,
+                                               include_dirs,
+                                               compression,
+                                               file_tags);
 
   std::filesystem::create_directories(std::filesystem::path(output_directory));
 

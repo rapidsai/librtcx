@@ -200,7 +200,7 @@ std::vector<char const *> headers;
 headers.reserve(std::size(sample_embed::file_ranges));
 for (auto &range : sample_embed::file_ranges) {
   headers.push_back(
-      reinterpret_cast<char const *>(sample_embed::files.data() + range[0]));
+      reinterpret_cast<char const *>(range(sample_embed::files).data()));
 }
 
 char const *options[] = {"--gpu-architecture=sm_80", "--include-path=include"};
@@ -225,6 +225,7 @@ rtcx_add_embed(sample_embed)
 rtcx_embed_blob(
   sample_embed
   ID sample_kernel
+  TAG "sample/kernel"
   FILE "${CMAKE_CURRENT_SOURCE_DIR}/sample_kernel.fatbin"
   DEST sample_kernel.fatbin
 )
@@ -246,8 +247,23 @@ Each blob ID becomes an index in the generated namespace:
 #include "sample_embed.hpp"
 #include <rtcx/rtcx.hpp>
 
-auto &range = sample_embed::file_ranges[sample_embed::sample_kernel];
-auto library =
-    rtcx::load_library({sample_embed::files.data() + range[0], range[1]});
+auto library = rtcx::load_library(sample_embed::get(sample_embed::sample_kernel));
 auto kernel = library->get_kernel("sample_kernel");
+
+// Compile-time lookup by integer ID or the optional TAG string:
+auto by_id = sample_embed::get<sample_embed::sample_kernel>();
+auto by_tag = sample_embed::get<"sample/kernel">();
 ```
+
+For `COMPRESSION none`, `get(index)` returns a const reference to a cached `std::span<std::uint8_t const>` over
+the selected file's bytes, excluding its appended null terminator. Pass a valid
+file ID from the generated namespace. For compressed embeds, `get(index)` returns
+a const reference to the `range_t` containing `{offset, size}` in `file_ranges`. These offsets refer to
+the decompressed bytes; decompress `files` before applying the range. Call
+`range(bytes)` on a span to obtain its subspan.
+
+The template overloads return the same const reference as `get(index)`, and reject
+out-of-range IDs and unknown tags at compile time. `TAG` is optional and separate
+from `ID`; each nonempty tag must be unique within its embed target. Tags may
+contain characters such as `/` that are not valid in C++ identifiers. Files
+without tags remain accessible by integer ID.

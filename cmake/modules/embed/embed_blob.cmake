@@ -18,6 +18,7 @@ Register a single binary blob or compiled object file into an embed target for J
       ID <id>
       FILE <file>
       DEST <dest>
+      [TAG <tag>]
       [ARRAY_IDS <key>... ARRAY_VALUES <value>...])
 
 Registers a single file or binary blob into embed target ``<target>``. May be
@@ -38,6 +39,9 @@ called multiple times on the same target. Must be called after
 ``DEST``
   Required. Virtual destination path within the embedded filesystem.
 
+``TAG``
+  Optional. Unique, nonempty string for compile-time lookup with ``get<"tag">()``.
+
 ``ARRAY_IDS``
   Optional. List of metadata key names to associate with this blob entry. Must
   be provided together with ``ARRAY_VALUES`` and both lists must have equal
@@ -50,7 +54,7 @@ called multiple times on the same target. Must be called after
 
 function(rtcx_embed_blob TARGET)
   set(OPTIONS)
-  set(ONE_VALUE_ARGS ID FILE DEST)
+  set(ONE_VALUE_ARGS ID FILE DEST TAG)
   set(MULTI_VALUE_ARGS ARRAY_IDS ARRAY_VALUES)
   cmake_parse_arguments(ARG "${OPTIONS}" "${ONE_VALUE_ARGS}" "${MULTI_VALUE_ARGS}" ${ARGN})
 
@@ -97,6 +101,10 @@ function(rtcx_embed_blob TARGET)
   set_property(TARGET ${TARGET}__embed_props APPEND PROPERTY EMBED_SOURCE_FILE_IDS ${ARG_ID})
   set_property(TARGET ${TARGET}__embed_props APPEND PROPERTY EMBED_SOURCE_FILES ${ARG_FILE})
   set_property(TARGET ${TARGET}__embed_props APPEND PROPERTY EMBED_SOURCE_FILE_DESTS ${ARG_DEST})
+  if(NOT DEFINED ARG_TAG OR "${ARG_TAG}" STREQUAL "")
+    set(ARG_TAG "__rtcx_no_tag__")
+  endif()
+  set_property(TARGET ${TARGET}__embed_props APPEND PROPERTY EMBED_FILE_TAGS "${ARG_TAG}")
 
   get_property(SOURCE_FILE_IDS TARGET ${TARGET}__embed_props PROPERTY EMBED_SOURCE_FILE_IDS)
   list(LENGTH SOURCE_FILE_IDS IDX)
