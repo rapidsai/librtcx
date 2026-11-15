@@ -19,5 +19,11 @@ rapids-dependency-file-generator \
 rapids-mamba-retry env create --yes -f env.yaml -n checks
 conda activate checks
 
+RAPIDS_BRANCH="$(cat "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../RAPIDS_BRANCH)"
+RAPIDS_CMAKE_FORMAT_FILE=/tmp/rapids_cmake_ci/cmake-format-rapids-cmake.json
+export RAPIDS_CMAKE_FORMAT_FILE
+mkdir -p "$(dirname "${RAPIDS_CMAKE_FORMAT_FILE}")"
+rapids-github-fetch rapidsai/rapids-cmake cmake-format-rapids-cmake.json "${RAPIDS_BRANCH}" > "${RAPIDS_CMAKE_FORMAT_FILE}"
+
 # Run pre-commit checks
 pre-commit run --all-files --show-diff-on-failure
