@@ -5,13 +5,10 @@
 
 #pragma once
 #include <fcntl.h>
+#include <rtcx/embed_codec.hpp>
 #include <rtcx/hash.hpp>
 #include <sys/mman.h>
 #include <unistd.h>
-
-#define XXH_INLINE_ALL
-#include <xxhash.h>
-#include <zstd.h>
 
 #include <cstdint>
 #include <cstring>
@@ -91,17 +88,7 @@ std::vector<uint8_t> compress_bytes(std::span<uint8_t const> bytes, std::string_
 
   if (compression == "none") { return std::vector<uint8_t>(bytes.begin(), bytes.end()); }
 
-  auto const max_compressed_size = ZSTD_compressBound(bytes.size());
-  std::vector<uint8_t> compressed(max_compressed_size);
-  auto const compressed_size =
-    ZSTD_compress(compressed.data(), compressed.size(), bytes.data(), bytes.size(), 22);
-
-  RTCX_EMBED_EXPECTS(
-    !ZSTD_isError(compressed_size),
-    std::format("Compression failed with error: {}", ZSTD_getErrorName(compressed_size)));
-
-  compressed.resize(compressed_size);
-  return compressed;
+  return detail::zstd_compress(bytes);
 }
 
 rtcx::hash128 compute_embed_hash(std::span<uint8_t const> uncompressed_files_bytes,
@@ -109,15 +96,12 @@ rtcx::hash128 compute_embed_hash(std::span<uint8_t const> uncompressed_files_byt
                                  std::span<uint8_t const> merged_include_dirs_bytes,
                                  std::string_view compression)
 {
-  XXH3_state_t state;
-  XXH3_INITSTATE(&state);
-  XXH3_128bits_reset(&state);
-  XXH3_128bits_update(&state, uncompressed_files_bytes.data(), uncompressed_files_bytes.size());
-  XXH3_128bits_update(&state, merged_dests_bytes.data(), merged_dests_bytes.size());
-  XXH3_128bits_update(&state, merged_include_dirs_bytes.data(), merged_include_dirs_bytes.size());
-  XXH3_128bits_update(&state, compression.data(), compression.size());
-  auto hash = XXH3_128bits_digest(&state);
-  return rtcx::hash128{hash.high64, hash.low64};
+  std::span<std::uint8_t const> const parts[] = {
+    uncompressed_files_bytes,
+    merged_dests_bytes,
+    merged_include_dirs_bytes,
+    {reinterpret_cast<std::uint8_t const*>(compression.data()), compression.size()}};
+  return detail::xxh3_128(parts);
 }
 
 template <typename Container, typename Formatter>
