@@ -187,7 +187,7 @@ TEST_F(RtcxTest, CompileWithEmbeddedHeaders)
 {
   std::vector<char const*> headers;
   for (auto const& range : rtcx_test_embed::file_ranges) {
-    headers.push_back(reinterpret_cast<char const*>(rtcx_test_embed::files.data() + range[0]));
+    headers.push_back(reinterpret_cast<char const*>(range(rtcx_test_embed::files).data()));
   }
 
   auto arch = device_arch("--gpu-architecture=sm_");
