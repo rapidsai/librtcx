@@ -20,35 +20,24 @@ project(rtcx VERSION 0.1.0 LANGUAGES CXX)
 
 option(RTCX_STATIC_LINK_NVRTC "Use static linking for NVRTC" OFF)
 option(RTCX_STATIC_LINK_NVJITLINK "Use static linking for nvJitLink" OFF)
+option(RTCX_BUILD_TESTS "Build rtcx tests" ${PROJECT_IS_TOP_LEVEL})
 
-rapids_find_package(CUDAToolkit 12.9 REQUIRED BUILD_EXPORT_SET rtcx-exports INSTALL_EXPORT_SET
-                    rtcx-exports)
+rapids_find_package(CUDAToolkit 12.9 REQUIRED BUILD_EXPORT_SET rtcx-exports
+                    INSTALL_EXPORT_SET rtcx-exports)
 
 if(NOT TARGET zstd)
   set(CPM_DOWNLOAD_zstd ON)
-  rapids_cpm_find(zstd
-                  1.5.7
-                  GLOBAL_TARGETS
-                  zstd::libzstd_static
-                  BUILD_EXPORT_SET
-                  rtcx-exports
-                  INSTALL_EXPORT_SET
-                  rtcx-exports
+  # A zstd fetched here is private to rtcx: its objects are merged into librtcx.a below, so it is
+  # neither exported nor installed.
+  rapids_cpm_find(zstd 1.5.7
+                  GLOBAL_TARGETS zstd::libzstd_static
                   CPM_ARGS
-                  GIT_REPOSITORY
-                  https://github.com/facebook/zstd.git
-                  GIT_TAG
-                  v1.5.7
-                  GIT_SHALLOW
-                  FALSE
-                  SOURCE_SUBDIR
-                  build/cmake
-                  OPTIONS
-                  "ZSTD_BUILD_STATIC ON"
-                  "ZSTD_BUILD_SHARED OFF"
-                  "ZSTD_BUILD_TESTS OFF"
-                  "ZSTD_BUILD_PROGRAMS OFF"
-                  "BUILD_SHARED_LIBS OFF")
+                  GIT_REPOSITORY https://github.com/facebook/zstd.git
+                  GIT_TAG v1.5.7
+                  GIT_SHALLOW FALSE SOURCE_SUBDIR build/cmake
+                  EXCLUDE_FROM_ALL TRUE
+                  OPTIONS "ZSTD_BUILD_STATIC ON" "ZSTD_BUILD_SHARED OFF" "ZSTD_BUILD_TESTS OFF"
+                          "ZSTD_BUILD_PROGRAMS OFF" "BUILD_SHARED_LIBS OFF")
 
   if(zstd_ADDED)
     # disable weak symbols support to hide tracing APIs as well
@@ -57,7 +46,14 @@ if(NOT TARGET zstd)
     target_compile_definitions(libzstd_static PUBLIC ZSTD_STATIC_LINKING_ONLY=0N)
     # suppress warnings from uninitialized variables and redefining ZSTD_STATIC_LINKING_ONLY
     target_compile_options(libzstd_static PRIVATE -w)
+    # Hide the bundled zstd so a shared library linking librtcx.a does not export ZSTD_* symbols.
+    set_target_properties(libzstd_static PROPERTIES C_VISIBILITY_PRESET hidden)
+    target_compile_definitions(libzstd_static
+                               PRIVATE "ZSTDLIB_VISIBLE=__attribute__((visibility(\"hidden\")))"
+                                       "ZSTDERRORLIB_VISIBLE=__attribute__((visibility(\"hidden\")))"
+                                       "ZDICTLIB_VISIBLE=__attribute__((visibility(\"hidden\")))")
     add_library(zstd ALIAS libzstd_static)
+    set(rtcx_bundle_zstd ON)
   endif()
 endif()
 
@@ -93,7 +89,15 @@ set_target_properties(rtcx
 target_include_directories(rtcx PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                            PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
 
-target_link_libraries(rtcx PUBLIC rtcx::hash PRIVATE zstd ${CMAKE_DL_LIBS} nvtx3::nvtx3-cpp)
+if(rtcx_bundle_zstd)
+  target_sources(rtcx PRIVATE $<TARGET_OBJECTS:zstd>)
+  target_include_directories(rtcx PRIVATE $<TARGET_PROPERTY:zstd,INTERFACE_INCLUDE_DIRECTORIES>)
+  target_compile_definitions(rtcx PRIVATE $<TARGET_PROPERTY:zstd,INTERFACE_COMPILE_DEFINITIONS>)
+else()
+  target_link_libraries(rtcx PRIVATE zstd)
+endif()
+target_link_libraries(rtcx PUBLIC rtcx::hash PRIVATE ${CMAKE_DL_LIBS} nvtx3::nvtx3-cpp
+                                                     CUDA::cudart_static)
 
 if(RTCX_STATIC_LINK_NVRTC)
   target_link_libraries(rtcx PRIVATE CUDA::nvrtc_static CUDA::nvrtc_builtins_static)
@@ -109,6 +113,11 @@ if(RTCX_STATIC_LINK_NVJITLINK)
 else()
   target_link_libraries(rtcx PRIVATE CUDA::nvJitLink)
   target_compile_definitions(rtcx PRIVATE RTCX_STATIC_LINK_LIBNVJITLINK=0)
+endif()
+
+if(RTCX_BUILD_TESTS)
+  enable_testing()
+  add_subdirectory(tests)
 endif()
 
 # =============================================================================
@@ -164,12 +173,18 @@ if(RTCX_INSTALL)
                 cmake/modules/register_fatbin.cpp.in DESTINATION ${lib_dir}/cmake/rtcx)
   install(DIRECTORY libcxx/ DESTINATION ${CMAKE_INSTALL_DATADIR}/rtcx/libcxx)
 
-  rapids_export(INSTALL rtcx EXPORT_SET rtcx-exports GLOBAL_TARGETS rtcx hash NAMESPACE rtcx::
+  rapids_export(INSTALL rtcx
+                EXPORT_SET rtcx-exports
+                GLOBAL_TARGETS rtcx hash
+                NAMESPACE rtcx::
                 FINAL_CODE_BLOCK rtcx_install_code_string)
 endif()
 
 # Build-tree export (always, so CPM consumers can find_package from the build tree)
-rapids_export(BUILD rtcx EXPORT_SET rtcx-exports GLOBAL_TARGETS rtcx hash NAMESPACE rtcx::
+rapids_export(BUILD rtcx
+              EXPORT_SET rtcx-exports
+              GLOBAL_TARGETS rtcx hash
+              NAMESPACE rtcx::
               FINAL_CODE_BLOCK rtcx_build_code_string)
 
 # =============================================================================
