@@ -211,4 +211,61 @@ extern "C" __global__ void write_value(int* out) { *out = rtcx_test::value(); }
   EXPECT_EQ(result, 42);
 }
 
+class PchHeapTest : public RtcxTest {
+ protected:
+  void SetUp() override { original_heap_size = rtcx::get_nvrtc_pch_heap_size(); }
+
+  void TearDown() override { EXPECT_NO_THROW(rtcx::set_nvrtc_pch_heap_size(original_heap_size)); }
+
+  std::size_t original_heap_size{};
+};
+
+TEST_F(PchHeapTest, ResizeHeap)
+{
+  rtcx::set_nvrtc_pch_heap_size(0);
+  ASSERT_EQ(rtcx::get_nvrtc_pch_heap_size(), 0);
+
+  // NVRTC may round requests up to the platform's alignment. Reusing the effective size
+  // should preserve it exactly. Older NVRTC versions leave PCH disabled for every request.
+  for (std::size_t requested_size : {64 * 1024 * 1024 + 1, 32 * 1024 * 1024 + 1}) {
+    rtcx::set_nvrtc_pch_heap_size(requested_size);
+    auto const effective_size = rtcx::get_nvrtc_pch_heap_size();
+    if (rtcx::nvrtc_version() < 12080) {
+      EXPECT_EQ(effective_size, 0);
+    } else {
+      EXPECT_GE(effective_size, requested_size);
+    }
+    rtcx::set_nvrtc_pch_heap_size(effective_size);
+    EXPECT_EQ(rtcx::get_nvrtc_pch_heap_size(), effective_size);
+  }
+}
+
+TEST_F(PchHeapTest, DisableAndReenableHeap)
+{
+  rtcx::set_nvrtc_pch_heap_size(0);
+  EXPECT_EQ(rtcx::get_nvrtc_pch_heap_size(), 0);
+
+  constexpr std::size_t requested_size = 64 * 1024 * 1024;
+  rtcx::set_nvrtc_pch_heap_size(requested_size);
+  if (rtcx::nvrtc_version() < 12080) {
+    EXPECT_EQ(rtcx::get_nvrtc_pch_heap_size(), 0);
+  } else {
+    EXPECT_GE(rtcx::get_nvrtc_pch_heap_size(), requested_size);
+  }
+
+  rtcx::set_nvrtc_pch_heap_size(0);
+  EXPECT_EQ(rtcx::get_nvrtc_pch_heap_size(), 0);
+}
+
+TEST_F(PchHeapTest, CompileWithPchDisabled)
+{
+  rtcx::set_nvrtc_pch_heap_size(0);
+  auto cubin   = compile_cubin(write_value_source);
+  auto library = rtcx::load_library({cubin.data(), cubin.size()});
+  int result{};
+  launch_and_read(library, "write_value", result);
+  EXPECT_EQ(result, 42);
+  EXPECT_EQ(rtcx::get_nvrtc_pch_heap_size(), 0);
+}
+
 }  // namespace
