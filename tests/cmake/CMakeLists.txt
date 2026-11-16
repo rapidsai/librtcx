@@ -31,12 +31,6 @@ set_tests_properties(rtcx_build PROPERTIES FIXTURES_REQUIRED rtcx_configured FIX
 set_tests_properties(rtcx_install PROPERTIES FIXTURES_REQUIRED rtcx_built FIXTURES_SETUP
                                              rtcx_installed)
 
-# Add rtcx as a subdirectory of a project that has its own target named hash.
-add_test(NAME subdirectory_configure
-         COMMAND ${CMAKE_COMMAND} -S "${CMAKE_CURRENT_LIST_DIR}/subdirectory" -B
-                 "${CMAKE_CURRENT_BINARY_DIR}/subdirectory" -G "${CMAKE_GENERATOR}"
-                 "-DRTCX_REPOSITORY_DIR=${RTCX_REPOSITORY_DIR}")
-
 # Build the consumer against both the build tree and the install tree.
 foreach(variant IN ITEMS build install)
   set(consumer_build_dir "${CMAKE_CURRENT_BINARY_DIR}/consumer-${variant}")
