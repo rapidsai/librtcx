@@ -8,6 +8,7 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 
+#include <dlfcn.h>
 #include <gtest/gtest.h>
 #include <rtcx/rtcx.hpp>
 
@@ -61,6 +62,15 @@ rtcx::byte_buffer compile_cubin(char const* source)
   });
 }
 
+// Tests resolve driver symbols at runtime instead of linking libcuda, matching rtcx.
+template <typename Func>
+Func* driver_symbol(char const* name)
+{
+  static void* const handle = ::dlopen("libcuda.so.1", RTLD_NOW | RTLD_LOCAL);
+  EXPECT_NE(handle, nullptr) << ::dlerror();
+  return handle == nullptr ? nullptr : reinterpret_cast<Func*>(::dlsym(handle, name));
+}
+
 class RtcxTest : public ::testing::Test {
  protected:
   static void SetUpTestSuite()
@@ -104,21 +114,32 @@ TEST_P(OccupancyTest, MatchesDriverFunctionQuery)
 
   // Load a CUfunction independently of rtcx's CUkernel-based library API. Older drivers
   // require this context-specific handle for occupancy queries.
+  auto const module_load_data = driver_symbol<decltype(cuModuleLoadData)>("cuModuleLoadData");
+  auto const module_get_function =
+    driver_symbol<decltype(cuModuleGetFunction)>("cuModuleGetFunction");
+  auto const occupancy_max_potential_block_size =
+    driver_symbol<decltype(cuOccupancyMaxPotentialBlockSize)>("cuOccupancyMaxPotentialBlockSize");
+  auto const module_unload = driver_symbol<decltype(cuModuleUnload)>("cuModuleUnload");
+  ASSERT_NE(module_load_data, nullptr);
+  ASSERT_NE(module_get_function, nullptr);
+  ASSERT_NE(occupancy_max_potential_block_size, nullptr);
+  ASSERT_NE(module_unload, nullptr);
+
   CUmodule module{};
-  ASSERT_EQ(cuModuleLoadData(&module, cubin.data()), CUDA_SUCCESS);
+  ASSERT_EQ(module_load_data(&module, cubin.data()), CUDA_SUCCESS);
   CUfunction function{};
-  auto const function_status = cuModuleGetFunction(&function, module, "write_value");
+  auto const function_status = module_get_function(&function, module, "write_value");
   int expected_grid_size{};
   int expected_block_size{};
   auto const occupancy_status = function_status == CUDA_SUCCESS
-                                  ? cuOccupancyMaxPotentialBlockSize(&expected_grid_size,
-                                                                     &expected_block_size,
-                                                                     function,
-                                                                     nullptr,
-                                                                     shared_memory_bytes,
-                                                                     block_size_limit)
+                                  ? occupancy_max_potential_block_size(&expected_grid_size,
+                                                                       &expected_block_size,
+                                                                       function,
+                                                                       nullptr,
+                                                                       shared_memory_bytes,
+                                                                       block_size_limit)
                                   : function_status;
-  EXPECT_EQ(cuModuleUnload(module), CUDA_SUCCESS);
+  EXPECT_EQ(module_unload(module), CUDA_SUCCESS);
   ASSERT_EQ(function_status, CUDA_SUCCESS);
   ASSERT_EQ(occupancy_status, CUDA_SUCCESS);
   ASSERT_GT(expected_grid_size, 0);
