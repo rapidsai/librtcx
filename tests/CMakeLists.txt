@@ -13,18 +13,6 @@ rapids_test_init()
 include(${rapids-cmake-dir}/cpm/gtest.cmake)
 rapids_cpm_gtest(BUILD_STATIC)
 
-if(NOT TARGET xxhash)
-  set(CPM_DOWNLOAD_xxhash ON)
-  rapids_cpm_find(xxhash 0.8.3
-                  CPM_ARGS
-                  GIT_REPOSITORY https://github.com/Cyan4973/xxHash.git
-                  GIT_TAG v0.8.3
-                  GIT_SHALLOW TRUE
-                  DOWNLOAD_ONLY TRUE)
-  add_library(xxhash INTERFACE)
-  target_include_directories(xxhash INTERFACE "${xxhash_SOURCE_DIR}")
-endif()
-
 include(${PROJECT_SOURCE_DIR}/cmake/modules/embed.cmake)
 
 rtcx_add_embed(rtcx_test_embed)

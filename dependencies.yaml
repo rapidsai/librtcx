@@ -28,7 +28,6 @@ files:
       - build
       - cuda
       - cuda_version
-      - test_cmake
 channels:
   - rapidsai-nightly
   - rapidsai
@@ -73,12 +72,6 @@ dependencies:
         packages:
           - cmake>=4.0,<4.5
           - librtcx-tests
-  test_cmake:
-    common:
-      - output_types: conda
-        packages:
-          - xxhash
-          - zstd
   cuda:
     common:
       - output_types: conda

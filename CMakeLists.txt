@@ -57,12 +57,25 @@ if(NOT TARGET zstd)
   endif()
 endif()
 
+if(NOT TARGET xxhash)
+  # xxhash is header-only and used privately by rtcx::hash, so it is neither exported nor installed.
+  set(CPM_DOWNLOAD_xxhash ON)
+  rapids_cpm_find(xxhash 0.8.3
+                  CPM_ARGS
+                  GIT_REPOSITORY https://github.com/Cyan4973/xxHash.git
+                  GIT_TAG v0.8.3
+                  GIT_SHALLOW TRUE
+                  DOWNLOAD_ONLY TRUE)
+  add_library(xxhash INTERFACE)
+  target_include_directories(xxhash INTERFACE "$<BUILD_INTERFACE:${xxhash_SOURCE_DIR}>")
+endif()
+
 if(NOT TARGET nvtx3::nvtx3-cpp)
   include(${rapids-cmake-dir}/cpm/nvtx3.cmake)
   rapids_cpm_nvtx3(BUILD_EXPORT_SET rtcx-exports INSTALL_EXPORT_SET rtcx-exports)
 endif()
 
-add_library(rtcx_hash STATIC src/hash.cpp)
+add_library(rtcx_hash STATIC src/hash.cpp src/embed_codec.cpp)
 add_library(rtcx::hash ALIAS rtcx_hash)
 
 set_target_properties(rtcx_hash
@@ -74,6 +87,7 @@ set_target_properties(rtcx_hash
                                  POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(rtcx_hash PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+target_link_libraries(rtcx_hash PRIVATE $<BUILD_LOCAL_INTERFACE:xxhash>)
 
 add_library(rtcx STATIC
             src/rtcx.cpp src/algorithm_launcher.cpp src/algorithm_planner.cpp
@@ -90,12 +104,22 @@ set_target_properties(rtcx
 target_include_directories(rtcx PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                            PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
 
+# The bundled zstd lives in librtcx_hash.a, which serves both rtcx's decompression and the embed
+# runner.
+foreach(target IN ITEMS rtcx_hash rtcx)
+  target_include_directories(${target}
+                             PRIVATE $<TARGET_PROPERTY:zstd,INTERFACE_INCLUDE_DIRECTORIES>)
+  target_compile_definitions(${target}
+                             PRIVATE $<TARGET_PROPERTY:zstd,INTERFACE_COMPILE_DEFINITIONS>)
+endforeach()
 if(rtcx_bundle_zstd)
-  target_sources(rtcx PRIVATE $<TARGET_OBJECTS:zstd>)
-  target_include_directories(rtcx PRIVATE $<TARGET_PROPERTY:zstd,INTERFACE_INCLUDE_DIRECTORIES>)
-  target_compile_definitions(rtcx PRIVATE $<TARGET_PROPERTY:zstd,INTERFACE_COMPILE_DEFINITIONS>)
+  # The bundled zstd is built multithreaded, so librtcx_hash.a needs Threads at link time.
+  rapids_find_package(Threads REQUIRED BUILD_EXPORT_SET rtcx-exports
+                      INSTALL_EXPORT_SET rtcx-exports)
+  target_sources(rtcx_hash PRIVATE $<TARGET_OBJECTS:zstd>)
+  target_link_libraries(rtcx_hash PRIVATE Threads::Threads)
 else()
-  target_link_libraries(rtcx PRIVATE zstd)
+  target_link_libraries(rtcx_hash PRIVATE $<BUILD_LOCAL_INTERFACE:zstd>)
 endif()
 target_link_libraries(rtcx PUBLIC rtcx::hash PRIVATE ${CMAKE_DL_LIBS} nvtx3::nvtx3-cpp
                                                      CUDA::cudart_static)
