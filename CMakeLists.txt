@@ -62,17 +62,18 @@ if(NOT TARGET nvtx3::nvtx3-cpp)
   rapids_cpm_nvtx3(BUILD_EXPORT_SET rtcx-exports INSTALL_EXPORT_SET rtcx-exports)
 endif()
 
-add_library(hash STATIC src/hash.cpp)
-add_library(rtcx::hash ALIAS hash)
+add_library(rtcx_hash STATIC src/hash.cpp)
+add_library(rtcx::hash ALIAS rtcx_hash)
 
-set_target_properties(hash
-                      PROPERTIES CXX_STANDARD 20
+set_target_properties(rtcx_hash
+                      PROPERTIES EXPORT_NAME hash
+                                 CXX_STANDARD 20
                                  CXX_STANDARD_REQUIRED YES
                                  CXX_VISIBILITY_PRESET hidden
                                  VISIBILITY_INLINES_HIDDEN YES
                                  POSITION_INDEPENDENT_CODE ON)
 
-target_include_directories(hash PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+target_include_directories(rtcx_hash PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 
 add_library(rtcx STATIC
             src/rtcx.cpp src/algorithm_launcher.cpp src/algorithm_planner.cpp
@@ -157,7 +158,7 @@ if(NOT RTCX_INSTALL)
   set(rtcx_exclude_from_install EXCLUDE_FROM_ALL)
 endif()
 
-install(TARGETS rtcx hash
+install(TARGETS rtcx rtcx_hash
         EXPORT rtcx-exports
         ARCHIVE DESTINATION ${lib_dir}
         INCLUDES
