@@ -13,6 +13,7 @@ int main()
   auto file_ids                = rtcx::embed::split_string("@EMBED_SCRIPT__FILE_IDS@", ';');
   auto file_paths              = rtcx::embed::split_string("@EMBED_SCRIPT__FILE_PATHS@", ';');
   auto file_dests              = rtcx::embed::split_string("@EMBED_SCRIPT__FILE_DESTS@", ';');
+  auto file_tags               = rtcx::embed::split_string("@EMBED_SCRIPT__FILE_TAGS@", ';');
   auto include_directories     = rtcx::embed::split_string("@EMBED_SCRIPT__INCLUDE_DIRS@", ';');
   std::string_view compression = "@EMBED_SCRIPT__COMPRESSION@";
   std::string_view output_dir  = "@EMBED_SCRIPT__OUTPUT_DIR@";
@@ -25,6 +26,7 @@ int main()
                               file_dests,
                               include_directories,
                               compression,
-                              output_dir);
+                              output_dir,
+                              file_tags);
   return EXIT_SUCCESS;
 }

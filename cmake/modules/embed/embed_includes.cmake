@@ -91,6 +91,7 @@ function(rtcx_embed_includes TARGET)
   foreach(SOURCE_FILE IN LISTS ARG_FILES)
     set_property(TARGET ${TARGET}__embed_props APPEND PROPERTY EMBED_SOURCE_FILE_IDS
                                                                "include_${IDX}")
+    set_property(TARGET ${TARGET}__embed_props APPEND PROPERTY EMBED_FILE_TAGS "__rtcx_no_tag__")
     set_property(TARGET ${TARGET}__embed_props APPEND
                  PROPERTY EMBED_SOURCE_FILES "${ARG_SOURCE_DIRECTORY}/${SOURCE_FILE}")
     set_property(TARGET ${TARGET}__embed_props APPEND
