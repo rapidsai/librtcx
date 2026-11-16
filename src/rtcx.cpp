@@ -56,7 +56,7 @@
     ::CUresult result_ = (__VA_ARGS__);                                                  \
     if (result_ != ::CUDA_SUCCESS) {                                                     \
       char const* enum_str_;                                                             \
-      RTCX_EXPECTS(::rtcx::cu->GetErrorString(result_, &enum_str_) == ::CUDA_SUCCESS,    \
+      RTCX_EXPECTS(::rtcx::cu().GetErrorString(result_, &enum_str_) == ::CUDA_SUCCESS,   \
                    "Unable to get CUDA error string",                                    \
                    std::runtime_error);                                                  \
       auto errstr_ = ::std::format("(cuda) expression `{}` failed, with error ({}): {}", \
@@ -89,7 +89,7 @@
       auto errstr_ = ::std::format("(nvrtc) expression `{}` failed, with error ({}): {}", \
                                    #__VA_ARGS__,                                          \
                                    static_cast<::std::int64_t>(result_),                  \
-                                   ::rtcx::nvrtc->GetErrorString(result_));               \
+                                   ::rtcx::nvrtc().GetErrorString(result_));              \
       RTCX_FAIL(errstr_, ::std::runtime_error);                                           \
     }                                                                                     \
   } while (0)
@@ -101,7 +101,7 @@
       auto errstr_ = ::std::format("(nvJitLink) expression `{}` failed, with error ({}): {}", \
                                    #__VA_ARGS__,                                              \
                                    static_cast<::std::int64_t>(result_),                      \
-                                   ::rtcx::nvJitLinkResult_string(result_));                  \
+                                   ::rtcx::nvjitlink_result_string(result_));                 \
       RTCX_FAIL(errstr_, ::std::runtime_error);                                               \
     }                                                                                         \
   } while (0)
@@ -111,6 +111,35 @@
 
 namespace rtcx {
 namespace {
+
+std::string_view nvjitlink_result_string(nvJitLinkResult result)
+{
+  switch (result) {
+    case NVJITLINK_SUCCESS: return "NVJITLINK_SUCCESS";
+    case NVJITLINK_ERROR_UNRECOGNIZED_OPTION: return "NVJITLINK_ERROR_UNRECOGNIZED_OPTION";
+    case NVJITLINK_ERROR_MISSING_ARCH: return "NVJITLINK_ERROR_MISSING_ARCH";
+    case NVJITLINK_ERROR_INVALID_INPUT: return "NVJITLINK_ERROR_INVALID_INPUT";
+    case NVJITLINK_ERROR_PTX_COMPILE: return "NVJITLINK_ERROR_PTX_COMPILE";
+    case NVJITLINK_ERROR_NVVM_COMPILE: return "NVJITLINK_ERROR_NVVM_COMPILE";
+    case NVJITLINK_ERROR_INTERNAL: return "NVJITLINK_ERROR_INTERNAL";
+    case NVJITLINK_ERROR_THREADPOOL: return "NVJITLINK_ERROR_THREADPOOL";
+    case NVJITLINK_ERROR_UNRECOGNIZED_INPUT: return "NVJITLINK_ERROR_UNRECOGNIZED_INPUT";
+    case NVJITLINK_ERROR_FINALIZE: return "NVJITLINK_ERROR_FINALIZE";
+#if CUDA_VERSION >= 13000
+    case NVJITLINK_ERROR_NULL_INPUT: return "NVJITLINK_ERROR_NULL_INPUT";
+    case NVJITLINK_ERROR_INCOMPATIBLE_OPTIONS: return "NVJITLINK_ERROR_INCOMPATIBLE_OPTIONS";
+    case NVJITLINK_ERROR_INCORRECT_INPUT_TYPE: return "NVJITLINK_ERROR_INCORRECT_INPUT_TYPE";
+    case NVJITLINK_ERROR_ARCH_MISMATCH: return "NVJITLINK_ERROR_ARCH_MISMATCH";
+    case NVJITLINK_ERROR_OUTDATED_LIBRARY: return "NVJITLINK_ERROR_OUTDATED_LIBRARY";
+    case NVJITLINK_ERROR_MISSING_FATBIN: return "NVJITLINK_ERROR_MISSING_FATBIN";
+    case NVJITLINK_ERROR_UNRECOGNIZED_ARCH: return "NVJITLINK_ERROR_UNRECOGNIZED_ARCH";
+    case NVJITLINK_ERROR_UNSUPPORTED_ARCH: return "NVJITLINK_ERROR_UNSUPPORTED_ARCH";
+    case NVJITLINK_ERROR_LTO_NOT_ENABLED: return "NVJITLINK_ERROR_LTO_NOT_ENABLED";
+#endif
+    default: return "NVJITLINK_ERROR_UNKNOWN";
+  }
+}
+
 
 struct nvtx_domain {
   static constexpr char const* name [[maybe_unused]] = "rtcx";
@@ -217,36 +246,6 @@ void log_error(std::string_view msg)
 
 namespace {
 
-std::string_view nvJitLinkResult_string(nvJitLinkResult result)
-{
-  switch (result) {
-    case NVJITLINK_SUCCESS: return "NVJITLINK_SUCCESS";
-    case NVJITLINK_ERROR_UNRECOGNIZED_OPTION: return "NVJITLINK_ERROR_UNRECOGNIZED_OPTION";
-    case NVJITLINK_ERROR_MISSING_ARCH: return "NVJITLINK_ERROR_MISSING_ARCH";
-    case NVJITLINK_ERROR_INVALID_INPUT: return "NVJITLINK_ERROR_INVALID_INPUT";
-    case NVJITLINK_ERROR_PTX_COMPILE: return "NVJITLINK_ERROR_PTX_COMPILE";
-    case NVJITLINK_ERROR_NVVM_COMPILE: return "NVJITLINK_ERROR_NVVM_COMPILE";
-    case NVJITLINK_ERROR_INTERNAL: return "NVJITLINK_ERROR_INTERNAL";
-    case NVJITLINK_ERROR_THREADPOOL: return "NVJITLINK_ERROR_THREADPOOL";
-    case NVJITLINK_ERROR_UNRECOGNIZED_INPUT: return "NVJITLINK_ERROR_UNRECOGNIZED_INPUT";
-    case NVJITLINK_ERROR_FINALIZE: return "NVJITLINK_ERROR_FINALIZE";
-#if CUDA_VERSION >= 13000
-    case NVJITLINK_ERROR_NULL_INPUT: return "NVJITLINK_ERROR_NULL_INPUT";
-    case NVJITLINK_ERROR_INCOMPATIBLE_OPTIONS: return "NVJITLINK_ERROR_INCOMPATIBLE_OPTIONS";
-    case NVJITLINK_ERROR_INCORRECT_INPUT_TYPE: return "NVJITLINK_ERROR_INCORRECT_INPUT_TYPE";
-    case NVJITLINK_ERROR_ARCH_MISMATCH: return "NVJITLINK_ERROR_ARCH_MISMATCH";
-    case NVJITLINK_ERROR_OUTDATED_LIBRARY: return "NVJITLINK_ERROR_OUTDATED_LIBRARY";
-    case NVJITLINK_ERROR_MISSING_FATBIN: return "NVJITLINK_ERROR_MISSING_FATBIN";
-    case NVJITLINK_ERROR_UNRECOGNIZED_ARCH: return "NVJITLINK_ERROR_UNRECOGNIZED_ARCH";
-    case NVJITLINK_ERROR_UNSUPPORTED_ARCH: return "NVJITLINK_ERROR_UNSUPPORTED_ARCH";
-    case NVJITLINK_ERROR_LTO_NOT_ENABLED: return "NVJITLINK_ERROR_LTO_NOT_ENABLED";
-#endif
-    default:
-      RTCX_FAIL(
-        std::format("Unrecognized nvJitLinkResult type: ({})", static_cast<std::int64_t>(result)),
-        std::runtime_error);
-  }
-}
 
 std::string_view binary_type_string(binary_type type)
 {
@@ -452,40 +451,62 @@ struct LibNVJitLink {
   }
 };
 
-static std::optional<LibCuda> cu;
-static std::optional<LibNVRTC> nvrtc;
-static std::optional<LibNVJitLink> nvjitlink;
-static std::optional<std::once_flag> init_libraries_flag{std::in_place};
-static std::optional<std::once_flag> teardown_libraries_flag{std::in_place};
+struct context_t {
+  LibCuda cu{LibCuda::_load()};
+  LibNVRTC nvrtc{LibNVRTC::_load()};
+  LibNVJitLink nvjitlink{LibNVJitLink::_load()};
+
+  context_t()
+  {
+    RTCX_EXPECTS(
+      cu.Init(0) == CUDA_SUCCESS, "Failed to initialize CUDA driver API", std::runtime_error);
+  }
+};
+
+context_t& context()
+{
+  static context_t instance;
+  return instance;
+}
+
+LibCuda& cu() { return context().cu; }
+LibNVRTC& nvrtc() { return context().nvrtc; }
+LibNVJitLink& nvjitlink() { return context().nvjitlink; }
+
+// Log API failures are diagnostics, not replacements for the original link error.
+std::string nvjitlink_log(nvJitLinkHandle handle, bool is_error)
+{
+  if (handle == nullptr) { return {}; }
+  std::size_t size = 0;
+  auto& linker     = nvjitlink();
+  auto result =
+    is_error ? linker.GetErrorLogSize(handle, &size) : linker.GetInfoLogSize(handle, &size);
+  if (result != NVJITLINK_SUCCESS) {
+    return std::format("Unable to retrieve nvJitLink {} log size ({}): {}",
+                       is_error ? "error" : "info",
+                       static_cast<int>(result),
+                       nvjitlink_result_string(result));
+  }
+  if (size <= 1) { return {}; }
+  std::string log(size, '\0');
+  result =
+    is_error ? linker.GetErrorLog(handle, log.data()) : linker.GetInfoLog(handle, log.data());
+  if (result != NVJITLINK_SUCCESS) {
+    return std::format("Unable to retrieve nvJitLink {} log ({}): {}",
+                       is_error ? "error" : "info",
+                       static_cast<int>(result),
+                       nvjitlink_result_string(result));
+  }
+  if (log.back() == '\0') { log.pop_back(); }
+  return log;
+}
 
 }  // namespace
 
 void initialize()
 {
   RTCX_FUNC_RANGE();
-
-  std::call_once(init_libraries_flag.value(), [] {
-    cu.emplace(LibCuda::_load());
-    RTCX_EXPECTS(
-      cu->Init(0) == CUDA_SUCCESS, "Failed to initialize CUDA driver API", std::runtime_error);
-    nvrtc.emplace(LibNVRTC::_load());
-    nvjitlink.emplace(LibNVJitLink::_load());
-  });
-}
-
-void teardown()
-{
-  RTCX_FUNC_RANGE();
-
-  std::call_once(teardown_libraries_flag.value(), [] {
-    nvjitlink.reset();
-    nvrtc.reset();
-    cu.reset();
-    init_libraries_flag.reset();
-    teardown_libraries_flag.reset();
-    init_libraries_flag.emplace();
-    teardown_libraries_flag.emplace();
-  });
+  (void)context();
 }
 
 blob_t blob_t::from_buffer(byte_buffer buffer)
@@ -511,10 +532,10 @@ void log_nvrtc_result(compile_params const& params,
   if (program == nullptr) { return; }
 
   std::size_t log_size;
-  if (auto errc = nvrtc->GetProgramLogSize(program, &log_size); errc != NVRTC_SUCCESS) {
+  if (auto errc = nvrtc().GetProgramLogSize(program, &log_size); errc != NVRTC_SUCCESS) {
     RTCX_FAIL(std::format("Failed to get NVRTC program log size with error ({}): {}",
                           static_cast<std::int64_t>(errc),
-                          nvrtc->GetErrorString(errc)),
+                          nvrtc().GetErrorString(errc)),
               std::runtime_error);
   }
 
@@ -522,10 +543,10 @@ void log_nvrtc_result(compile_params const& params,
 
   if (log_size > 1) {
     log.resize(log_size);
-    if (auto errc = nvrtc->GetProgramLog(program, log.data()); errc != NVRTC_SUCCESS) {
+    if (auto errc = nvrtc().GetProgramLog(program, log.data()); errc != NVRTC_SUCCESS) {
       RTCX_FAIL(std::format("Failed to get NVRTC program log with error ({}): {}",
                             static_cast<std::int64_t>(errc),
-                            nvrtc->GetErrorString(errc)),
+                            nvrtc().GetErrorString(errc)),
                 std::runtime_error);
     }
   }
@@ -548,11 +569,12 @@ void log_nvrtc_result(compile_params const& params,
   if (log.empty()) { return; }
 
   auto msg = std::format(
-    "NVRTC Compilation for `{}` {} ({}): {}.\nHeaders:\n{}\n\nOptions:\n{}\n\nLog:\n\t{}",
+    "NVRTC compilation for `{}` {} ({}) `{}` during "
+    "nvrtcCompileProgram.\nHeaders:\n{}\nOptions:\n{}\nLog:\n{}",
     params.name == nullptr ? "<unnamed>" : params.name,
     status_str,
     static_cast<std::int64_t>(compile_result),
-    nvrtc->GetErrorString(compile_result),
+    nvrtc().GetErrorString(compile_result),
     headers_str,
     options_str,
     std::string_view{log.data(), log.size()});
@@ -564,56 +586,17 @@ void log_nvrtc_result(compile_params const& params,
   }
 }
 
-void log_nvJitLink_result(link_params const& params,
-                          nvJitLinkHandle handle,
-                          nvJitLinkResult link_result)
+void report_nvjitlink_result(link_params const& params,
+                             nvJitLinkHandle handle,
+                             nvJitLinkResult link_result,
+                             std::string_view operation,
+                             std::string_view scope = "nvJitLink linking")
 {
-  if (handle == nullptr) { return; }
-
-  std::size_t info_log_size;
-  if (auto errc = nvjitlink->GetInfoLogSize(handle, &info_log_size); errc != NVJITLINK_SUCCESS) {
-    RTCX_FAIL(std::format("Failed to get nvJitLink info log size with error ({}): {}",
-                          static_cast<std::int64_t>(errc),
-                          nvJitLinkResult_string(errc)),
-              std::runtime_error);
-  }
-
-  std::vector<char> info_log;
-  if (info_log_size > 1) {
-    info_log.resize(info_log_size);
-    if (auto errc = nvjitlink->GetInfoLog(handle, info_log.data()); errc != NVJITLINK_SUCCESS) {
-      RTCX_FAIL(std::format("Failed to get nvJitLink info log with error ({}): {}",
-                            static_cast<std::int64_t>(errc),
-                            nvJitLinkResult_string(errc)),
-                std::runtime_error);
-    }
-  }
-
-  info_log.resize(info_log_size == 0 ? 0 : (info_log_size - 1));
-
-  std::size_t error_log_size;
-  if (auto errc = nvjitlink->GetErrorLogSize(handle, &error_log_size); errc != NVJITLINK_SUCCESS) {
-    RTCX_FAIL(std::format("Failed to get nvJitLink error log size with error ({}): {}",
-                          static_cast<std::int64_t>(errc),
-                          nvJitLinkResult_string(errc)),
-              std::runtime_error);
-  }
-
-  std::vector<char> error_log;
-
-  if (error_log_size > 1) {
-    error_log.resize(error_log_size);
-    if (auto errc = nvjitlink->GetErrorLog(handle, error_log.data()); errc != NVJITLINK_SUCCESS) {
-      RTCX_FAIL(std::format("Failed to get nvJitLink error log with error ({}): {}",
-                            static_cast<std::int64_t>(errc),
-                            nvJitLinkResult_string(errc)),
-                std::runtime_error);
-    }
-  }
-
-  error_log.resize(error_log_size == 0 ? 0 : (error_log_size - 1));
-
-  if (info_log.empty() && error_log.empty()) { return; }
+  auto info_log  = nvjitlink_log(handle, false);
+  auto error_log = nvjitlink_log(handle, true);
+  if (link_result == NVJITLINK_SUCCESS && info_log.empty() && error_log.empty()) { return; }
+  if (!info_log.empty()) { info_log = std::format("Info:\n{}\n\n", info_log); }
+  if (!error_log.empty()) { error_log = std::format("Error:\n{}\n\n", error_log); }
 
   std::string fragments_str;
   for (auto& frag : params.file_fragments) {
@@ -633,28 +616,25 @@ void log_nvJitLink_result(link_params const& params,
   auto status_str = link_result == NVJITLINK_SUCCESS ? "completed with" : "failed with";
 
   auto msg = std::format(
-    "(nvJitLink) Linking for `{}` ({}) {} error code ({}): {}.\nFragments: \n{}\n"
-    "Link Options: \n{}\n\nInfo Log:\n\t{}\n\nError Log:\n\t{}\n\n",
+    "{} for `{}`'s {} {} ({}) `{}` during {}.\nFragments:\n{}\n"
+    "Link Options:\n{}\n{}{}",
+    scope,
     params.name == nullptr ? "<unnamed>" : params.name,
     binary_type_string(params.output_type),
     status_str,
     static_cast<std::int64_t>(link_result),
-    nvJitLinkResult_string(link_result),
+    nvjitlink_result_string(link_result),
+    operation,
     fragments_str,
     link_options_str,
     std::string_view{info_log.data(), info_log.size()},
     std::string_view{error_log.data(), error_log.size()});
 
-  bool needs_info_log =
-    std::find_if(
-      params.link_options.begin(), params.link_options.end(), [](std::string_view option) {
-        return option == "--verbose" || option == "-time";
-      }) != params.link_options.end();
-
   if (link_result == NVJITLINK_SUCCESS) {
-    if (needs_info_log) { log_warning(msg); }
+    log_warning(msg);
   } else {
     log_error(msg);
+    RTCX_FAIL(msg, std::runtime_error);
   }
 }
 
@@ -665,7 +645,7 @@ std::int32_t nvrtc_version()
   RTCX_FUNC_RANGE();
 
   std::int32_t major, minor;
-  RTCX_CHECK_NVRTC(nvrtc->Version(&major, &minor));
+  RTCX_CHECK_NVRTC(nvrtc().Version(&major, &minor));
   return major * 1000 + minor * 10;
 }
 
@@ -674,7 +654,7 @@ std::int32_t nvjitlink_version()
   RTCX_FUNC_RANGE();
 
   std::uint32_t major, minor;
-  RTCX_CHECK_NVJITLINK(nvjitlink->Version(&major, &minor));
+  RTCX_CHECK_NVJITLINK(nvjitlink().Version(&major, &minor));
   return static_cast<std::int32_t>(major * 1000 + minor * 10);
 }
 
@@ -686,20 +666,20 @@ byte_buffer compile(compile_params const& params)
   RTCX_EXPECTS(params.source != nullptr, "Fragment source must not be null", std::logic_error);
 
   nvrtcProgram program = nullptr;
-  RTCX_CHECK_NVRTC(nvrtc->CreateProgram(&program,
-                                        params.source,
-                                        params.name,
-                                        static_cast<std::int32_t>(params.headers.size()),
-                                        params.headers.data(),
-                                        params.header_include_names.data()));
+  RTCX_CHECK_NVRTC(nvrtc().CreateProgram(&program,
+                                         params.source,
+                                         params.name,
+                                         static_cast<std::int32_t>(params.headers.size()),
+                                         params.headers.data(),
+                                         params.header_include_names.data()));
 
-  RTCX_DEFER([&] { nvrtc->DestroyProgram(&program); });
+  RTCX_DEFER([&] { nvrtc().DestroyProgram(&program); });
 
   for (auto* name_expr : params.name_expressions) {
-    RTCX_CHECK_NVRTC(nvrtc->AddNameExpression(program, name_expr));
+    RTCX_CHECK_NVRTC(nvrtc().AddNameExpression(program, name_expr));
   }
 
-  auto compile_result = nvrtc->CompileProgram(
+  auto compile_result = nvrtc().CompileProgram(
     program, static_cast<std::int32_t>(params.options.size()), params.options.data());
   log_nvrtc_result(params, program, compile_result);
   RTCX_CHECK_NVRTC(compile_result);
@@ -707,23 +687,23 @@ byte_buffer compile(compile_params const& params)
   switch (params.target_type) {
     case binary_type::CUBIN: {
       std::size_t cubin_size;
-      RTCX_CHECK_NVRTC(nvrtc->GetCUBINSize(program, &cubin_size));
+      RTCX_CHECK_NVRTC(nvrtc().GetCUBINSize(program, &cubin_size));
       auto cubin = byte_buffer::make(cubin_size);
-      RTCX_CHECK_NVRTC(nvrtc->GetCUBIN(program, reinterpret_cast<char*>(cubin.data())));
+      RTCX_CHECK_NVRTC(nvrtc().GetCUBIN(program, reinterpret_cast<char*>(cubin.data())));
       return cubin;
     } break;
     case binary_type::LTO_IR: {
       std::size_t lto_ir_size;
-      RTCX_CHECK_NVRTC(nvrtc->GetLTOIRSize(program, &lto_ir_size));
+      RTCX_CHECK_NVRTC(nvrtc().GetLTOIRSize(program, &lto_ir_size));
       auto lto_ir = byte_buffer::make(lto_ir_size);
-      RTCX_CHECK_NVRTC(nvrtc->GetLTOIR(program, reinterpret_cast<char*>(lto_ir.data())));
+      RTCX_CHECK_NVRTC(nvrtc().GetLTOIR(program, reinterpret_cast<char*>(lto_ir.data())));
       return lto_ir;
     } break;
     case binary_type::PTX: {
       std::size_t ptx_size;
-      RTCX_CHECK_NVRTC(nvrtc->GetPTXSize(program, &ptx_size));
+      RTCX_CHECK_NVRTC(nvrtc().GetPTXSize(program, &ptx_size));
       auto ptx = byte_buffer::make(ptx_size);
-      RTCX_CHECK_NVRTC(nvrtc->GetPTX(program, reinterpret_cast<char*>(ptx.data())));
+      RTCX_CHECK_NVRTC(nvrtc().GetPTX(program, reinterpret_cast<char*>(ptx.data())));
       return ptx;
     } break;
     default:
@@ -738,12 +718,12 @@ kernel_occupancy_config kernel_ref::max_occupancy_config(std::size_t dynamic_sha
 {
   std::int32_t min_grid_size;
   std::int32_t block_size;
-  RTCX_CHECK_CUDA(cu->OccupancyMaxPotentialBlockSize(&min_grid_size,
-                                                     &block_size,
-                                                     reinterpret_cast<CUfunction>(handle_),
-                                                     nullptr,
-                                                     dynamic_shared_memory_bytes,
-                                                     block_size_limit));
+  RTCX_CHECK_CUDA(cu().OccupancyMaxPotentialBlockSize(&min_grid_size,
+                                                      &block_size,
+                                                      reinterpret_cast<CUfunction>(handle_),
+                                                      nullptr,
+                                                      dynamic_shared_memory_bytes,
+                                                      block_size_limit));
 
   return kernel_occupancy_config{.min_grid_size = static_cast<std::uint32_t>(min_grid_size),
                                  .block_size    = static_cast<std::uint32_t>(block_size)};
@@ -775,7 +755,7 @@ void kernel_ref::launch(cuda_dim3 grid_dim,
                      .numAttrs       = 0};
 
   RTCX_CHECK_CUDA(
-    cu->LaunchKernelEx(&cfg, reinterpret_cast<CUfunction>(handle_), kernel_params, nullptr));
+    cu().LaunchKernelEx(&cfg, reinterpret_cast<CUfunction>(handle_), kernel_params, nullptr));
 }
 
 void kernel_ref::launch_cooperative(cuda_dim3 grid_dim,
@@ -792,21 +772,21 @@ void kernel_ref::launch_cooperative(cuda_dim3 grid_dim,
   RTCX_EXPECTS(
     kernel_params != nullptr, "Kernel parameters pointer must not be null", std::logic_error);
 
-  RTCX_CHECK_CUDA(cu->LaunchCooperativeKernel(reinterpret_cast<CUfunction>(handle_),
-                                              grid_dim.x,
-                                              grid_dim.y,
-                                              grid_dim.z,
-                                              block_dim.x,
-                                              block_dim.y,
-                                              block_dim.z,
-                                              shared_mem_bytes,
-                                              stream,
-                                              kernel_params));
+  RTCX_CHECK_CUDA(cu().LaunchCooperativeKernel(reinterpret_cast<CUfunction>(handle_),
+                                               grid_dim.x,
+                                               grid_dim.y,
+                                               grid_dim.z,
+                                               block_dim.x,
+                                               block_dim.y,
+                                               block_dim.z,
+                                               shared_mem_bytes,
+                                               stream,
+                                               kernel_params));
 }
 
 library_t::~library_t()
 {
-  if (handle_ != nullptr) { cu->LibraryUnload(handle_); }
+  if (handle_ != nullptr) { cu().LibraryUnload(handle_); }
 }
 
 library load_library(std::span<std::uint8_t const> binary)
@@ -816,10 +796,10 @@ library load_library(std::span<std::uint8_t const> binary)
   CUlibrary handle;
 
   RTCX_CHECK_CUDA(
-    cu->LibraryLoadData(&handle, binary.data(), nullptr, nullptr, 0, nullptr, nullptr, 0));
+    cu().LibraryLoadData(&handle, binary.data(), nullptr, nullptr, 0, nullptr, nullptr, 0));
 
   RTCX_DEFER([&] {
-    if (handle != nullptr) { RTCX_CHECK_CUDA(cu->LibraryUnload(handle)); }
+    if (handle != nullptr) { RTCX_CHECK_CUDA(cu().LibraryUnload(handle)); }
   });
 
   auto library = std::make_shared<library_t>(handle);
@@ -837,10 +817,11 @@ library load_library_from_file(char const* path)
 
   CUlibrary handle;
 
-  RTCX_CHECK_CUDA(cu->LibraryLoadFromFile(&handle, path, nullptr, nullptr, 0, nullptr, nullptr, 0));
+  RTCX_CHECK_CUDA(
+    cu().LibraryLoadFromFile(&handle, path, nullptr, nullptr, 0, nullptr, nullptr, 0));
 
   RTCX_DEFER([&] {
-    if (handle != nullptr) { RTCX_CHECK_CUDA(cu->LibraryUnload(handle)); }
+    if (handle != nullptr) { RTCX_CHECK_CUDA(cu().LibraryUnload(handle)); }
   });
 
   auto library = std::make_shared<library_t>(handle);
@@ -872,41 +853,50 @@ byte_buffer link_library(link_params const& params)
   }
 
   nvJitLinkHandle handle = nullptr;
-  RTCX_CHECK_NVJITLINK(nvjitlink->Create(&handle,
-                                         static_cast<std::uint32_t>(params.link_options.size()),
-                                         const_cast<char const**>(params.link_options.data())));
+  RTCX_DEFER([&] {
+    if (handle != nullptr) { nvjitlink().Destroy(&handle); }
+  });
 
-  RTCX_DEFER([&] { nvjitlink->Destroy(&handle); });
+  auto check_result = [&](nvJitLinkResult result, std::string_view operation) {
+    if (result != NVJITLINK_SUCCESS) { report_nvjitlink_result(params, handle, result, operation); }
+  };
+  check_result(nvjitlink().Create(&handle,
+                                  static_cast<std::uint32_t>(params.link_options.size()),
+                                  const_cast<char const**>(params.link_options.data())),
+               "nvJitLinkCreate");
 
   for (auto& frag : params.file_fragments) {
-    RTCX_CHECK_NVJITLINK(nvjitlink->AddFile(handle, to_nvjitlink_input_type(frag.type), frag.path));
+    check_result(nvjitlink().AddFile(handle, to_nvjitlink_input_type(frag.type), frag.path),
+                 "nvJitLinkAddFile");
   }
 
   for (auto& frag : params.memory_fragments) {
-    RTCX_CHECK_NVJITLINK(nvjitlink->AddData(handle,
-                                            to_nvjitlink_input_type(frag.type),
-                                            frag.data.data(),
-                                            frag.data.size_bytes(),
-                                            frag.name));
+    check_result(nvjitlink().AddData(handle,
+                                     to_nvjitlink_input_type(frag.type),
+                                     frag.data.data(),
+                                     frag.data.size_bytes(),
+                                     frag.name),
+                 "nvJitLinkAddData");
   }
 
-  auto link_result = nvjitlink->Complete(handle);
-  log_nvJitLink_result(params, handle, link_result);
-  RTCX_CHECK_NVJITLINK(link_result);
+  auto link_result = nvjitlink().Complete(handle);
+  report_nvjitlink_result(params, handle, link_result, "nvJitLinkComplete");
 
   switch (params.output_type) {
     case binary_type::CUBIN: {
       std::size_t cubin_size;
-      RTCX_CHECK_NVJITLINK(nvjitlink->GetLinkedCubinSize(handle, &cubin_size));
+      check_result(nvjitlink().GetLinkedCubinSize(handle, &cubin_size),
+                   "nvJitLinkGetLinkedCubinSize");
       auto cubin = byte_buffer::make(cubin_size);
-      RTCX_CHECK_NVJITLINK(nvjitlink->GetLinkedCubin(handle, cubin.data()));
+      check_result(nvjitlink().GetLinkedCubin(handle, cubin.data()), "nvJitLinkGetLinkedCubin");
       return cubin;
     } break;
     case binary_type::PTX: {
       std::size_t ptx_size;
-      RTCX_CHECK_NVJITLINK(nvjitlink->GetLinkedPtxSize(handle, &ptx_size));
+      check_result(nvjitlink().GetLinkedPtxSize(handle, &ptx_size), "nvJitLinkGetLinkedPtxSize");
       auto ptx = byte_buffer::make(ptx_size);
-      RTCX_CHECK_NVJITLINK(nvjitlink->GetLinkedPtx(handle, reinterpret_cast<char*>(ptx.data())));
+      check_result(nvjitlink().GetLinkedPtx(handle, reinterpret_cast<char*>(ptx.data())),
+                   "nvJitLinkGetLinkedPtx");
       return ptx;
     } break;
     default:
@@ -921,7 +911,7 @@ kernel_ref library_t::get_kernel(char const* name) const
   RTCX_FUNC_RANGE();
 
   CUkernel kernel;
-  RTCX_CHECK_CUDA(cu->LibraryGetKernel(&kernel, handle_, name));
+  RTCX_CHECK_CUDA(cu().LibraryGetKernel(&kernel, handle_, name));
   return kernel_ref{kernel};
 }
 
@@ -1028,7 +1018,7 @@ std::optional<library> get_disk_library(std::string const& cache_dir, hash128 co
 
   CUlibrary handle;
   auto errc =
-    cu->LibraryLoadFromFile(&handle, path.c_str(), nullptr, nullptr, 0, nullptr, nullptr, 0);
+    cu().LibraryLoadFromFile(&handle, path.c_str(), nullptr, nullptr, 0, nullptr, nullptr, 0);
 
   if (errc == CUDA_ERROR_FILE_NOT_FOUND) { return std::nullopt; }
 

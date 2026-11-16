@@ -8,7 +8,6 @@
 
 #include <rtcx/algorithm_planner.hpp>
 #include <rtcx/macros.hpp>
-#include <rtcx/nvjitlink_checker.hpp>
 
 #include <chrono>
 #include <iterator>
@@ -20,6 +19,21 @@
 #include <vector>
 
 namespace rtcx {
+
+void check_algorithm_planner_link_result(nvJitLinkHandle handle, nvJitLinkResult result)
+{
+  if (result != NVJITLINK_SUCCESS) {
+    std::string error_msg = "nvJITLink failed with error " + std::to_string(result);
+    size_t log_size       = 0;
+    result                = nvJitLinkGetErrorLogSize(handle, &log_size);
+    if (result == NVJITLINK_SUCCESS && log_size > 0) {
+      std::unique_ptr<char[]> log{new char[log_size]};
+      result = nvJitLinkGetErrorLog(handle, log.get());
+      if (result == NVJITLINK_SUCCESS) { error_msg += "\n" + std::string(log.get()); }
+    }
+    RTCX_FAIL("AlgorithmPlanner nvJITLink error log: %s", error_msg.c_str());
+  }
+}
 
 std::string algorithm_planner::get_fragments_key() const
 {
@@ -66,7 +80,7 @@ std::shared_ptr<algorithm_launcher> algorithm_planner::build()
   std::string archs = "-arch=sm_" + std::to_string((major * 10 + minor));
 
   // Load the generated LTO IR and link them together
-  nvJitLinkHandle handle;
+  nvJitLinkHandle handle = nullptr;
   std::vector<char const*> lopts;
   lopts.reserve(2 + linktime_extra_options.size());
   lopts.push_back("-lto");
@@ -75,7 +89,7 @@ std::shared_ptr<algorithm_launcher> algorithm_planner::build()
     lopts.push_back(opt.c_str());
   }
   auto result = nvJitLinkCreate(&handle, static_cast<unsigned int>(lopts.size()), lopts.data());
-  check_nvjitlink_result(handle, result);
+  check_algorithm_planner_link_result(handle, result);
 
   for (auto const& frag : this->fragments) {
     frag->add_to(handle);
@@ -84,16 +98,16 @@ std::shared_ptr<algorithm_launcher> algorithm_planner::build()
   // Call to nvJitLinkComplete causes linker to link together all the LTO-IR
   // modules perform any optimizations and generate cubin from it.
   result = nvJitLinkComplete(handle);
-  check_nvjitlink_result(handle, result);
+  check_algorithm_planner_link_result(handle, result);
 
   // get cubin from nvJitLink
   size_t cubin_size;
   result = nvJitLinkGetLinkedCubinSize(handle, &cubin_size);
-  check_nvjitlink_result(handle, result);
+  check_algorithm_planner_link_result(handle, result);
 
   std::unique_ptr<char[]> cubin{new char[cubin_size]};
   result = nvJitLinkGetLinkedCubin(handle, cubin.get());
-  check_nvjitlink_result(handle, result);
+  check_algorithm_planner_link_result(handle, result);
 
   result = nvJitLinkDestroy(&handle);
   RTCX_EXPECTS(result == NVJITLINK_SUCCESS, "nvJitLinkDestroy failed");
