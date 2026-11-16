@@ -5,10 +5,8 @@
 
 #include "rtcx_test_embed.hpp"
 
-#include <cuda.h>
 #include <cuda_runtime_api.h>
 
-#include <dlfcn.h>
 #include <gtest/gtest.h>
 #include <rtcx/rtcx.hpp>
 
@@ -62,15 +60,6 @@ rtcx::byte_buffer compile_cubin(char const* source)
   });
 }
 
-// Tests resolve driver symbols at runtime instead of linking libcuda, matching rtcx.
-template <typename Func>
-Func* driver_symbol(char const* name)
-{
-  static void* const handle = ::dlopen("libcuda.so.1", RTLD_NOW | RTLD_LOCAL);
-  EXPECT_NE(handle, nullptr) << ::dlerror();
-  return handle == nullptr ? nullptr : reinterpret_cast<Func*>(::dlsym(handle, name));
-}
-
 class RtcxTest : public ::testing::Test {
  protected:
   static void SetUpTestSuite()
@@ -105,50 +94,41 @@ class OccupancyTest : public RtcxTest,
                       public ::testing::WithParamInterface<std::tuple<std::size_t, std::int32_t>> {
 };
 
-TEST_P(OccupancyTest, MatchesDriverFunctionQuery)
+TEST_P(OccupancyTest, QueryAndLaunch)
 {
   auto const [shared_memory_bytes, block_size_limit] = GetParam();
-  auto cubin                                         = compile_cubin(write_value_source);
+  auto cubin                                         = compile_cubin(R"cuda(
+extern "C" __global__ void write_value(int* out) {
+  if (blockIdx.x == 0 && threadIdx.x == 0) { *out = 42; }
+}
+)cuda");
   auto library = rtcx::load_library({cubin.data(), cubin.size()});
   auto kernel  = library->get_kernel("write_value");
 
-  // Load a CUfunction independently of rtcx's CUkernel-based library API. Older drivers
-  // require this context-specific handle for occupancy queries.
-  auto const module_load_data = driver_symbol<decltype(cuModuleLoadData)>("cuModuleLoadData");
-  auto const module_get_function =
-    driver_symbol<decltype(cuModuleGetFunction)>("cuModuleGetFunction");
-  auto const occupancy_max_potential_block_size =
-    driver_symbol<decltype(cuOccupancyMaxPotentialBlockSize)>("cuOccupancyMaxPotentialBlockSize");
-  auto const module_unload = driver_symbol<decltype(cuModuleUnload)>("cuModuleUnload");
-  ASSERT_NE(module_load_data, nullptr);
-  ASSERT_NE(module_get_function, nullptr);
-  ASSERT_NE(occupancy_max_potential_block_size, nullptr);
-  ASSERT_NE(module_unload, nullptr);
-
-  CUmodule module{};
-  ASSERT_EQ(module_load_data(&module, cubin.data()), CUDA_SUCCESS);
-  CUfunction function{};
-  auto const function_status = module_get_function(&function, module, "write_value");
-  int expected_grid_size{};
-  int expected_block_size{};
-  auto const occupancy_status = function_status == CUDA_SUCCESS
-                                  ? occupancy_max_potential_block_size(&expected_grid_size,
-                                                                       &expected_block_size,
-                                                                       function,
-                                                                       nullptr,
-                                                                       shared_memory_bytes,
-                                                                       block_size_limit)
-                                  : function_status;
-  EXPECT_EQ(module_unload(module), CUDA_SUCCESS);
-  ASSERT_EQ(function_status, CUDA_SUCCESS);
-  ASSERT_EQ(occupancy_status, CUDA_SUCCESS);
-  ASSERT_GT(expected_grid_size, 0);
-  ASSERT_GT(expected_block_size, 0);
-
+  // This query must also work on drivers older than CUDA 12.5, which require a CUfunction.
   auto const config = kernel.max_occupancy_config(shared_memory_bytes, block_size_limit);
-  EXPECT_EQ(config.min_grid_size, expected_grid_size);
-  EXPECT_EQ(config.block_size, expected_block_size);
+  ASSERT_GT(config.min_grid_size, 0);
+  ASSERT_GT(config.block_size, 0);
+  int device{};
+  int max_threads_per_block{};
+  CUDA_CHECK(cudaGetDevice(&device));
+  CUDA_CHECK(cudaDeviceGetAttribute(&max_threads_per_block, cudaDevAttrMaxThreadsPerBlock, device));
+  EXPECT_LE(config.block_size, max_threads_per_block);
   if (block_size_limit > 0) { EXPECT_LE(config.block_size, block_size_limit); }
+
+  int* d_out{};
+  CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_out), sizeof(int)));
+  CUDA_CHECK(cudaMemset(d_out, 0, sizeof(int)));
+  void* params[] = {&d_out};
+  EXPECT_NO_THROW(kernel.launch({config.min_grid_size, 1, 1},
+                                {config.block_size, 1, 1},
+                                static_cast<std::uint32_t>(shared_memory_bytes),
+                                nullptr,
+                                params));
+  int result{};
+  EXPECT_EQ(cudaMemcpy(&result, d_out, sizeof(int), cudaMemcpyDeviceToHost), cudaSuccess);
+  EXPECT_EQ(cudaFree(d_out), cudaSuccess);
+  EXPECT_EQ(result, 42);
 }
 
 INSTANTIATE_TEST_SUITE_P(Rtcx,
