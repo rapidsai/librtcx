@@ -5,6 +5,7 @@
 
 #include "rtcx_test_embed.hpp"
 
+#include <cuda.h>
 #include <cuda_runtime_api.h>
 
 #include <gtest/gtest.h>
@@ -89,6 +90,51 @@ TEST_F(RtcxTest, CompileErrorThrows)
 {
   EXPECT_ANY_THROW(std::ignore = compile_cubin("this is not CUDA"));
 }
+
+class OccupancyTest : public RtcxTest,
+                      public ::testing::WithParamInterface<std::tuple<std::size_t, std::int32_t>> {
+};
+
+TEST_P(OccupancyTest, MatchesDriverFunctionQuery)
+{
+  auto const [shared_memory_bytes, block_size_limit] = GetParam();
+  auto cubin                                         = compile_cubin(write_value_source);
+  auto library = rtcx::load_library({cubin.data(), cubin.size()});
+  auto kernel  = library->get_kernel("write_value");
+
+  // Load a CUfunction independently of rtcx's CUkernel-based library API. Older drivers
+  // require this context-specific handle for occupancy queries.
+  CUmodule module{};
+  ASSERT_EQ(cuModuleLoadData(&module, cubin.data()), CUDA_SUCCESS);
+  CUfunction function{};
+  auto const function_status = cuModuleGetFunction(&function, module, "write_value");
+  int expected_grid_size{};
+  int expected_block_size{};
+  auto const occupancy_status = function_status == CUDA_SUCCESS
+                                  ? cuOccupancyMaxPotentialBlockSize(&expected_grid_size,
+                                                                     &expected_block_size,
+                                                                     function,
+                                                                     nullptr,
+                                                                     shared_memory_bytes,
+                                                                     block_size_limit)
+                                  : function_status;
+  EXPECT_EQ(cuModuleUnload(module), CUDA_SUCCESS);
+  ASSERT_EQ(function_status, CUDA_SUCCESS);
+  ASSERT_EQ(occupancy_status, CUDA_SUCCESS);
+  ASSERT_GT(expected_grid_size, 0);
+  ASSERT_GT(expected_block_size, 0);
+
+  auto const config = kernel.max_occupancy_config(shared_memory_bytes, block_size_limit);
+  EXPECT_EQ(config.min_grid_size, expected_grid_size);
+  EXPECT_EQ(config.block_size, expected_block_size);
+  if (block_size_limit > 0) { EXPECT_LE(config.block_size, block_size_limit); }
+}
+
+INSTANTIATE_TEST_SUITE_P(Rtcx,
+                         OccupancyTest,
+                         ::testing::Combine(::testing::Values(std::size_t{0},
+                                                              std::size_t{16 * 1024}),
+                                            ::testing::Values(std::int32_t{0}, std::int32_t{64})));
 
 TEST_F(RtcxTest, LinkLtoIr)
 {

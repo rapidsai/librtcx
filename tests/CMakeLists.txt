@@ -15,12 +15,8 @@ rapids_cpm_gtest(BUILD_STATIC)
 
 if(NOT TARGET xxhash)
   set(CPM_DOWNLOAD_xxhash ON)
-  rapids_cpm_find(xxhash 0.8.3
-                  CPM_ARGS
-                  GIT_REPOSITORY https://github.com/Cyan4973/xxHash.git
-                  GIT_TAG v0.8.3
-                  GIT_SHALLOW TRUE
-                  DOWNLOAD_ONLY TRUE)
+  rapids_cpm_find(xxhash 0.8.3 CPM_ARGS GIT_REPOSITORY https://github.com/Cyan4973/xxHash.git
+                  GIT_TAG v0.8.3 GIT_SHALLOW TRUE DOWNLOAD_ONLY TRUE)
   add_library(xxhash INTERFACE)
   target_include_directories(xxhash INTERFACE "${xxhash_SOURCE_DIR}")
 endif()
@@ -38,7 +34,8 @@ add_dependencies(rtcx_test rtcx_test_embed)
 set_target_properties(rtcx_test PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED YES
                                            INSTALL_RPATH "\$ORIGIN/../../../lib")
 target_include_directories(rtcx_test PRIVATE "${rtcx_test_embed_INCLUDE_DIRS}")
-target_link_libraries(rtcx_test PRIVATE rtcx::rtcx CUDA::cudart_static GTest::gtest_main)
+target_link_libraries(rtcx_test PRIVATE rtcx::rtcx CUDA::cuda_driver CUDA::cudart_static
+                                        GTest::gtest_main)
 
 rapids_test_add(NAME rtcx_test COMMAND rtcx_test GPUS 1 INSTALL_COMPONENT_SET testing)
 
