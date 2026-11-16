@@ -769,14 +769,14 @@ byte_buffer compile(compile_params const& params)
 kernel_occupancy_config kernel_ref::max_occupancy_config(std::size_t dynamic_shared_memory_bytes,
                                                          std::int32_t block_size_limit) const
 {
+  // Occupancy APIs only accept CUkernel handles directly on CUDA 12.5 and newer.
+  CUfunction function;
+  RTCX_CHECK_CUDA(cu->KernelGetFunction(&function, handle_));
+
   std::int32_t min_grid_size;
   std::int32_t block_size;
-  RTCX_CHECK_CUDA(cu->OccupancyMaxPotentialBlockSize(&min_grid_size,
-                                                     &block_size,
-                                                     reinterpret_cast<CUfunction>(handle_),
-                                                     nullptr,
-                                                     dynamic_shared_memory_bytes,
-                                                     block_size_limit));
+  RTCX_CHECK_CUDA(cu->OccupancyMaxPotentialBlockSize(
+    &min_grid_size, &block_size, function, nullptr, dynamic_shared_memory_bytes, block_size_limit));
 
   return kernel_occupancy_config{.min_grid_size = static_cast<std::uint32_t>(min_grid_size),
                                  .block_size    = static_cast<std::uint32_t>(block_size)};
