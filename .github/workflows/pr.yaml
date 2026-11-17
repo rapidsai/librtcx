@@ -39,6 +39,7 @@ jobs:
     uses: rapidsai/shared-workflows/.github/workflows/checks.yaml@main
     with:
       enable_check_generated_files: false
+      enable_check_version_files_changed: false
       # librtcx has no release tags yet.
       enable_check_version_against_tag: false
   cmake-tests:
