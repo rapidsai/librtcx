@@ -16,7 +16,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   rapids_cpm_init()
 endif()
 
-project(rtcx VERSION 0.1.0 LANGUAGES CXX)
+project(rtcx VERSION 0.2.0 LANGUAGES CXX)
 
 option(RTCX_STATIC_LINK_NVRTC "Use static linking for NVRTC" OFF)
 option(RTCX_STATIC_LINK_NVJITLINK "Use static linking for nvJitLink" OFF)
