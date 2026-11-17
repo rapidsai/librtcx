@@ -103,7 +103,7 @@ outputs:
       - script:
           - "test -f \"${PREFIX}/include/rtcx/rtcx.hpp\""
           - "test -f \"${PREFIX}/lib/librtcx.a\""
-          - "test -f \"${PREFIX}/lib/libhash.a\""
+          - "test -f \"${PREFIX}/lib/librtcx_hash.a\""
           - "test -f \"${PREFIX}/lib/cmake/rtcx/rtcx-config.cmake\""
           - "test -f \"${PREFIX}/lib/cmake/rtcx/embed.cmake\""
     about:
