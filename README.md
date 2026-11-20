@@ -40,6 +40,8 @@ Doxygen completes without documentation warnings.
 
 By default, librtcx links dynamically to NVRTC and nvJitLink. Set `RTCX_STATIC_LINK_NVRTC=ON` and/or `RTCX_STATIC_LINK_NVJITLINK=ON` to use the static toolkit libraries instead.
 
+Zstd embedding uses compression level 9 to reduce build time. Set `RTCX_EMBED_COMPRESSION_LEVEL` when configuring librtcx to choose a different level (for example, `-DRTCX_EMBED_COMPRESSION_LEVEL=22` for the previous behavior). This setting does not affect embeds using `COMPRESSION none`.
+
 Consume an installed package with:
 
 ```cmake

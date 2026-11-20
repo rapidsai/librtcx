@@ -17,8 +17,8 @@ namespace rtcx::embed::detail {
 std::vector<std::uint8_t> zstd_compress(std::span<std::uint8_t const> bytes)
 {
   std::vector<std::uint8_t> compressed(ZSTD_compressBound(bytes.size()));
-  auto const compressed_size =
-    ZSTD_compress(compressed.data(), compressed.size(), bytes.data(), bytes.size(), 22);
+  auto const compressed_size = ZSTD_compress(
+    compressed.data(), compressed.size(), bytes.data(), bytes.size(), RTCX_EMBED_COMPRESSION_LEVEL);
   if (ZSTD_isError(compressed_size)) {
     throw std::runtime_error(
       std::format("Compression failed with error: {}", ZSTD_getErrorName(compressed_size)));

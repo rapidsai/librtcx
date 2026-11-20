@@ -15,7 +15,7 @@
 namespace rtcx::embed::detail {
 
 /**
- * @brief Compress bytes into a single zstd frame at the maximum compression level.
+ * @brief Compress bytes into a single zstd frame at the configured compression level.
  *
  * @param bytes Bytes to compress
  * @return The compressed frame
