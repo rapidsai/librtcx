@@ -1,0 +1,45 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#include <nvcxx/cuda/detail/config>
+
+namespace nvcxx::std {
+
+template <class A, class B>
+struct pair {
+  A first;
+  B second;
+
+  constexpr pair() = default;
+
+  template <class X, class Y>
+  constexpr pair(X&& a, Y&& b) : first(::std::forward<X>(a)), second(::std::forward<Y>(b))
+  {
+  }
+};
+
+template <class A, class B>
+pair(A, B) -> pair<A, B>;
+
+template <::size_t I, class A, class B>
+constexpr auto& get(pair<A, B>& p)
+{
+  if constexpr (I == 0)
+    return p.first;
+  else
+    return p.second;
+}
+
+template <::size_t I, class A, class B>
+constexpr auto const& get(pair<A, B> const& p)
+{
+  if constexpr (I == 0)
+    return p.first;
+  else
+    return p.second;
+}
+
+}  // namespace nvcxx::std

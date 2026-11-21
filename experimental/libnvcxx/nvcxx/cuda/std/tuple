@@ -1,0 +1,252 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#include <nvcxx/cuda/detail/config>
+#include <nvcxx/cuda/detail/integer_sequence>
+#include <nvcxx/cuda/std/type_traits>
+
+namespace nvcxx::std {
+
+namespace detail {
+
+template <::size_t I, class T>
+struct tuple_leaf {
+  T value;
+};
+
+template <class Seq, class... T>
+struct tuple_impl;
+
+template <::size_t... I, class... T>
+struct tuple_impl<index_sequence<I...>, T...> : tuple_leaf<I, T>... {
+  constexpr tuple_impl() = default;
+
+  constexpr tuple_impl(T... v)
+    requires(sizeof...(T) > 0)
+    : tuple_leaf<I, T>{::std::forward<T>(v)}...
+  {
+  }
+};
+
+template <>
+struct tuple_impl<index_sequence<>> {
+  constexpr tuple_impl() = default;
+};
+
+template <::size_t I, class T, class... R>
+struct nth_type : nth_type<I - 1, R...> {};
+
+template <class T, class... R>
+struct nth_type<0, T, R...> {
+  using type = T;
+};
+
+}  // namespace detail
+
+template <class... T>
+struct tuple : detail::tuple_impl<index_sequence_for<T...>, T...> {
+  using detail::tuple_impl<index_sequence_for<T...>, T...>::tuple_impl;
+
+  constexpr tuple()             = default;
+  constexpr tuple(tuple const&) = default;
+  constexpr tuple(tuple&&)      = default;
+
+ private:
+  template <class Other, ::size_t... I>
+  constexpr tuple& assign(Other&& other, index_sequence<I...>)
+  {
+    ((get<I>(*this) = get<I>(::std::forward<Other>(other))), ...);
+    return *this;
+  }
+
+ public:
+  constexpr tuple& operator=(tuple const&)
+    requires((is_same_v<T, __remove_reference(T)> && ...))
+  = default;
+
+  constexpr tuple& operator=(tuple&&)
+    requires((is_same_v<T, __remove_reference(T)> && ...))
+  = default;
+
+  constexpr tuple& operator=(tuple const& other)
+    requires(!(is_same_v<T, __remove_reference(T)> && ...))
+  {
+    return assign(other, index_sequence_for<T...>{});
+  }
+
+  constexpr tuple& operator=(tuple&& other)
+    requires(!(is_same_v<T, __remove_reference(T)> && ...))
+  {
+    return assign(::std::move(other), index_sequence_for<T...>{});
+  }
+
+  template <class... U>
+    requires(sizeof...(T) == sizeof...(U))
+  constexpr tuple& operator=(tuple<U...> const& other)
+  {
+    return assign(other, index_sequence_for<T...>{});
+  }
+
+  template <class... U>
+    requires(sizeof...(T) == sizeof...(U))
+  constexpr tuple& operator=(tuple<U...>&& other)
+  {
+    return assign(::std::move(other), index_sequence_for<T...>{});
+  }
+};
+
+template <class... T>
+tuple(T...) -> tuple<T...>;
+
+template <::size_t I, class T>
+struct tuple_element;
+
+template <::size_t I, class... T>
+struct tuple_element<I, tuple<T...>> : detail::nth_type<I, T...> {};
+
+template <::size_t I, class T>
+using tuple_element_t = typename tuple_element<I, T>::type;
+
+namespace detail {
+
+template <::size_t I, class T>
+constexpr decltype(auto) leaf_value(tuple_leaf<I, T>& leaf)
+{
+  return (leaf.value);
+}
+
+template <::size_t I, class T>
+constexpr decltype(auto) leaf_value(tuple_leaf<I, T> const& leaf)
+{
+  return (leaf.value);
+}
+
+template <::size_t I, class T>
+constexpr decltype(auto) leaf_value(tuple_leaf<I, T>&& leaf)
+{
+  return static_cast<T&&>(leaf.value);
+}
+
+template <::size_t I, class T>
+constexpr decltype(auto) leaf_value(tuple_leaf<I, T> const&& leaf)
+{
+  return static_cast<T const&&>(leaf.value);
+}
+
+}  // namespace detail
+
+template <::size_t I, class... T>
+constexpr decltype(auto) get(tuple<T...>& t)
+{
+  return detail::leaf_value<I>(t);
+}
+
+template <::size_t I, class... T>
+constexpr decltype(auto) get(tuple<T...> const& t)
+{
+  return detail::leaf_value<I>(t);
+}
+
+template <::size_t I, class... T>
+constexpr decltype(auto) get(tuple<T...>&& t)
+{
+  return detail::leaf_value<I>(::std::move(t));
+}
+
+template <::size_t I, class... T>
+constexpr decltype(auto) get(tuple<T...> const&& t)
+{
+  return detail::leaf_value<I>(::std::move(t));
+}
+
+namespace detail {
+
+struct ignore_t {
+  template <class T>
+  constexpr ignore_t const& operator=(T const&) const
+  {
+    return *this;
+  }
+};
+
+}  // namespace detail
+
+inline constexpr detail::ignore_t ignore{};
+
+template <class... T>
+constexpr tuple<T&...> tie(T&... values)
+{
+  return tuple<T&...>{values...};
+}
+
+template <class... T>
+constexpr tuple<__decay(T)...> make_tuple(T&&... values)
+{
+  return tuple<__decay(T)...>{::std::forward<T>(values)...};
+}
+
+namespace detail {
+
+template <class F, class Tuple, ::size_t... I>
+constexpr decltype(auto) apply_impl(F&& f, Tuple&& t, index_sequence<I...>)
+{
+  return ::std::forward<F>(f)(get<I>(::std::forward<Tuple>(t))...);
+}
+
+template <class... A, class... B, ::size_t... I, ::size_t... J>
+constexpr auto tuple_cat_impl(tuple<A...> const& a,
+                              tuple<B...> const& b,
+                              index_sequence<I...>,
+                              index_sequence<J...>)
+{
+  return tuple<A..., B...>{get<I>(a)..., get<J>(b)...};
+}
+
+}  // namespace detail
+
+template <class F, class... T>
+constexpr decltype(auto) apply(F&& f, tuple<T...>& t)
+{
+  return detail::apply_impl(::std::forward<F>(f), t, index_sequence_for<T...>{});
+}
+
+template <class F, class... T>
+constexpr decltype(auto) apply(F&& f, tuple<T...> const& t)
+{
+  return detail::apply_impl(::std::forward<F>(f), t, index_sequence_for<T...>{});
+}
+
+template <class F, class... T>
+constexpr decltype(auto) apply(F&& f, tuple<T...>&& t)
+{
+  return detail::apply_impl(::std::forward<F>(f), ::std::move(t), index_sequence_for<T...>{});
+}
+
+template <class Empty = tuple<>>
+constexpr Empty tuple_cat()
+{
+  return Empty{};
+}
+
+template <class... T>
+constexpr auto tuple_cat(tuple<T...> const& t)
+{
+  return t;
+}
+
+template <class... A, class... B>
+constexpr auto tuple_cat(tuple<A...> const& a, tuple<B...> const& b)
+{
+  return detail::tuple_cat_impl(a, b, index_sequence_for<A...>{}, index_sequence_for<B...>{});
+}
+
+template <class A, class B, class C, class... Rest>
+constexpr auto tuple_cat(A const& a, B const& b, C const& c, Rest const&... rest)
+{
+  return tuple_cat(tuple_cat(a, b), c, rest...);
+}
+
+}  // namespace nvcxx::std

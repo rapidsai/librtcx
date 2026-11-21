@@ -1,0 +1,20 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#include <nvcxx/cuda/std/type_traits>
+
+namespace nvcxx::std::detail {
+
+template <class T>
+concept math_arithmetic = is_integral_v<T> || is_same_v<T, float> || is_same_v<T, double>;
+
+template <class T>
+using math_promote_t = conditional_t<is_integral_v<T>, double, T>;
+
+template <class... T>
+using math_common_t = common_type_t<math_promote_t<T>...>;
+
+}  // namespace nvcxx::std::detail

@@ -1,0 +1,39 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#include <nvcxx/cuda/std/cmath.abs.h>
+#include <nvcxx/cuda/std/cmath.acos.h>
+#include <nvcxx/cuda/std/cmath.acosh.h>
+#include <nvcxx/cuda/std/cmath.asin.h>
+#include <nvcxx/cuda/std/cmath.asinh.h>
+#include <nvcxx/cuda/std/cmath.atan.h>
+#include <nvcxx/cuda/std/cmath.atan2.h>
+#include <nvcxx/cuda/std/cmath.atanh.h>
+#include <nvcxx/cuda/std/cmath.cbrt.h>
+#include <nvcxx/cuda/std/cmath.ceil.h>
+#include <nvcxx/cuda/std/cmath.cos.h>
+#include <nvcxx/cuda/std/cmath.cosh.h>
+#include <nvcxx/cuda/std/cmath.exp.h>
+#include <nvcxx/cuda/std/cmath.exp2.h>
+#include <nvcxx/cuda/std/cmath.expm1.h>
+#include <nvcxx/cuda/std/cmath.fabs.h>
+#include <nvcxx/cuda/std/cmath.floor.h>
+#include <nvcxx/cuda/std/cmath.fma.h>
+#include <nvcxx/cuda/std/cmath.fmod.h>
+#include <nvcxx/cuda/std/cmath.hypot.h>
+#include <nvcxx/cuda/std/cmath.log.h>
+#include <nvcxx/cuda/std/cmath.log10.h>
+#include <nvcxx/cuda/std/cmath.log1p.h>
+#include <nvcxx/cuda/std/cmath.log2.h>
+#include <nvcxx/cuda/std/cmath.pow.h>
+#include <nvcxx/cuda/std/cmath.rint.h>
+#include <nvcxx/cuda/std/cmath.round.h>
+#include <nvcxx/cuda/std/cmath.sin.h>
+#include <nvcxx/cuda/std/cmath.sinh.h>
+#include <nvcxx/cuda/std/cmath.sqrt.h>
+#include <nvcxx/cuda/std/cmath.tan.h>
+#include <nvcxx/cuda/std/cmath.tanh.h>
+#include <nvcxx/cuda/std/cmath.trunc.h>

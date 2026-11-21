@@ -1,0 +1,35 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#include <nvcxx/cuda/detail/config>
+#include <nvcxx/cuda/detail/construction_tags>
+#include <nvcxx/cuda/detail/integer_sequence>
+#include <nvcxx/cuda/detail/pair>
+#include <nvcxx/cuda/detail/swap>
+
+namespace nvcxx::std {
+
+using ::std::forward;
+using ::std::move;
+
+template <class T>
+constexpr T const& as_const(T& value)
+{
+  return value;
+}
+
+template <class T>
+void as_const(T const&&) = delete;
+
+template <class T>
+constexpr __underlying_type(T) to_underlying(T value)
+{
+  return static_cast<__underlying_type(T)>(value);
+}
+
+[[noreturn]] inline void unreachable() { __builtin_unreachable(); }
+
+}  // namespace nvcxx::std

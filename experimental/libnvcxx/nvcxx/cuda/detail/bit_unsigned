@@ -1,0 +1,16 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#include <nvcxx/cuda/std/type_traits>
+
+namespace nvcxx::std::detail {
+
+template <class T>
+concept bit_unsigned = is_same_v<T, unsigned char> || is_same_v<T, unsigned short> ||
+                       is_same_v<T, unsigned int> || is_same_v<T, unsigned long> ||
+                       is_same_v<T, unsigned long long> || is_same_v<T, unsigned __int128>;
+
+}  // namespace nvcxx::std::detail

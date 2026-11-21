@@ -1,0 +1,138 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#include <nvcxx/cuda/detail/config>
+
+namespace nvcxx::std {
+
+template <class C>
+constexpr auto begin(C& container) -> decltype(container.begin())
+{
+  return container.begin();
+}
+
+template <class C>
+constexpr auto begin(C const& container) -> decltype(container.begin())
+{
+  return container.begin();
+}
+
+template <class T, ::size_t N>
+constexpr T* begin(T (&array)[N])
+{
+  return array;
+}
+
+template <class C>
+constexpr auto end(C& container) -> decltype(container.end())
+{
+  return container.end();
+}
+
+template <class C>
+constexpr auto end(C const& container) -> decltype(container.end())
+{
+  return container.end();
+}
+
+template <class T, ::size_t N>
+constexpr T* end(T (&array)[N])
+{
+  return array + N;
+}
+
+template <class C>
+constexpr auto data(C& container) -> decltype(container.data())
+{
+  return container.data();
+}
+
+template <class C>
+constexpr auto data(C const& container) -> decltype(container.data())
+{
+  return container.data();
+}
+
+template <class T, ::size_t N>
+constexpr T* data(T (&array)[N])
+{
+  return array;
+}
+
+template <class C>
+constexpr auto empty(C const& container) -> decltype(container.empty())
+{
+  return container.empty();
+}
+
+template <class T, ::size_t N>
+constexpr bool empty(T const (&)[N])
+{
+  return false;
+}
+
+template <class C>
+constexpr auto size(C const& container) -> decltype(container.size())
+{
+  return container.size();
+}
+
+template <class T, ::size_t N>
+constexpr ::size_t size(T const (&)[N])
+{
+  return N;
+}
+
+template <class C>
+constexpr auto ssize(C const& container)
+  -> decltype(::ptrdiff_t{} + static_cast<__make_signed(decltype(container.size()))>(0))
+{
+  using result_type =
+    decltype(::ptrdiff_t{} + static_cast<__make_signed(decltype(container.size()))>(0));
+  return static_cast<result_type>(container.size());
+}
+
+template <class T, ::ptrdiff_t N>
+constexpr ::ptrdiff_t ssize(T const (&)[N])
+{
+  return N;
+}
+
+template <class I>
+constexpr auto distance(I a, I b)
+{
+  return b - a;
+}
+
+struct input_iterator_tag {};
+
+struct output_iterator_tag {};
+
+struct forward_iterator_tag : input_iterator_tag {};
+
+struct bidirectional_iterator_tag : forward_iterator_tag {};
+
+struct random_access_iterator_tag : bidirectional_iterator_tag {};
+
+template <class I>
+struct iterator_traits {
+  using difference_type   = typename I::difference_type;
+  using value_type        = typename I::value_type;
+  using pointer           = typename I::pointer;
+  using reference         = typename I::reference;
+  using iterator_category = typename I::iterator_category;
+};
+
+template <class T>
+struct iterator_traits<T*> {
+  using difference_type   = ::ptrdiff_t;
+  using value_type        = __remove_cv(T);
+  using pointer           = T*;
+  using reference         = T&;
+  using iterator_category = random_access_iterator_tag;
+};
+
+}  // namespace nvcxx::std

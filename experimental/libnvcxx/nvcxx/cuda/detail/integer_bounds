@@ -1,0 +1,36 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#include <nvcxx/cuda/detail/config>
+#include <nvcxx/cuda/std/type_traits>
+
+namespace nvcxx::detail {
+
+template <class T>
+struct integer_bounds {
+  static_assert(std::is_integral_v<T> && !std::is_same_v<__remove_cv(T), bool>);
+
+  static constexpr T max()
+  {
+    if constexpr (std::is_signed_v<T>) {
+      using U = __make_unsigned(T);
+      return static_cast<T>(static_cast<U>(-1) >> 1);
+    } else {
+      return static_cast<T>(-1);
+    }
+  }
+
+  static constexpr T lowest()
+  {
+    if constexpr (std::is_signed_v<T>) {
+      return static_cast<T>(-max() - 1);
+    } else {
+      return T(0);
+    }
+  }
+};
+
+}  // namespace nvcxx::detail

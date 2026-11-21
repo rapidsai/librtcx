@@ -1,0 +1,12 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#include <nvcxx/cuda/std/bit>
+
+#include <nvcxx/cuda/bit.bit_reverse.h>
+#include <nvcxx/cuda/bit.bitmask.h>
+#include <nvcxx/cuda/bit.shl.h>
+#include <nvcxx/cuda/bit.shr.h>

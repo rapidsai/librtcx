@@ -1,0 +1,195 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#include <nvcxx/cuda/detail/config>
+#include <nvcxx/cuda/std/climits>
+#include <nvcxx/cuda/std/type_traits>
+
+namespace nvcxx::std {
+
+enum float_round_style {
+  round_indeterminate       = -1,
+  round_toward_zero         = 0,
+  round_to_nearest          = 1,
+  round_toward_infinity     = 2,
+  round_toward_neg_infinity = 3
+};
+
+enum float_denorm_style { denorm_indeterminate = -1, denorm_absent = 0, denorm_present = 1 };
+
+template <class T>
+struct numeric_limits {
+ private:
+  using U                           = __remove_cv(T);
+  static constexpr bool is_float    = is_same_v<U, float>;
+  static constexpr bool is_double   = is_same_v<U, double>;
+  static constexpr bool is_floating = is_float || is_double;
+
+  static constexpr bool signed_value()
+  {
+    if constexpr (is_integer)
+      return U(-1) < U(0);
+    else
+      return is_floating;
+  }
+
+  static constexpr int digits_value()
+  {
+    if constexpr (is_same_v<U, bool>)
+      return 1;
+    else if constexpr (is_integer)
+      return sizeof(U) * 8 - int(is_signed);
+    else if constexpr (is_float)
+      return 24;
+    else if constexpr (is_double)
+      return 53;
+    else
+      return 0;
+  }
+
+ public:
+  static constexpr bool is_integer               = is_integral_v<U>;
+  static constexpr bool is_specialized           = is_integer || is_floating;
+  static constexpr bool is_signed                = signed_value();
+  static constexpr bool is_exact                 = is_integer;
+  static constexpr bool is_iec559                = is_floating;
+  static constexpr bool is_bounded               = is_specialized;
+  static constexpr bool is_modulo                = is_integer && !is_signed && !is_same_v<U, bool>;
+  static constexpr bool tinyness_before          = false;
+  static constexpr bool has_infinity             = is_floating;
+  static constexpr bool has_quiet_NaN            = is_floating;
+  static constexpr bool has_signaling_NaN        = is_floating;
+  static constexpr bool has_denorm_loss          = false;
+  static constexpr float_denorm_style has_denorm = is_floating ? denorm_present : denorm_absent;
+  static constexpr float_round_style round_style =
+    is_floating ? round_to_nearest : round_toward_zero;
+  static constexpr int digits         = digits_value();
+  static constexpr int digits10       = is_float ? 6 : is_double ? 15 : digits * 3 / 10;
+  static constexpr int max_digits10   = is_floating ? 2 + digits * 30103 / 100000 : 0;
+  static constexpr int radix          = is_specialized ? 2 : 0;
+  static constexpr int min_exponent   = is_float ? -125 : is_double ? -1021 : 0;
+  static constexpr int min_exponent10 = is_float ? -37 : is_double ? -307 : 0;
+  static constexpr int max_exponent   = is_float ? 128 : is_double ? 1024 : 0;
+  static constexpr int max_exponent10 = is_float ? 38 : is_double ? 308 : 0;
+
+  static constexpr U min()
+  {
+    if constexpr (is_integer) {
+      return lowest();
+    } else if constexpr (is_float) {
+      return 0x1p-126f;
+    } else if constexpr (is_double) {
+      return 0x1p-1022;
+    } else {
+      return U();
+    }
+  }
+
+  static constexpr U max()
+  {
+    if constexpr (is_same_v<U, bool>) {
+      return true;
+    } else if constexpr (is_integer) {
+      if constexpr (is_signed)
+        return U((static_cast<unsigned __int128>(1) << digits) - 1);
+      else
+        return U(-1);
+    } else if constexpr (is_float) {
+      return 0x1.fffffep127f;
+    } else if constexpr (is_double) {
+      return 0x1.fffffffffffffp1023;
+    } else {
+      return U();
+    }
+  }
+
+  static constexpr U lowest()
+  {
+    if constexpr (is_floating) {
+      return -max();
+    } else if constexpr (is_signed) {
+      return -max() - 1;
+    } else {
+      return U();
+    }
+  }
+
+  static constexpr U epsilon()
+  {
+    if constexpr (is_float) {
+      return 0x1p-23f;
+    } else if constexpr (is_double) {
+      return 0x1p-52;
+    } else {
+      return U();
+    }
+  }
+
+  static constexpr U round_error()
+  {
+    if constexpr (is_floating) {
+      return U(0.5);
+    } else {
+      return U();
+    }
+  }
+
+  static constexpr U infinity()
+  {
+    if constexpr (is_float) {
+      return __builtin_bit_cast(U, 0x7f800000U);
+    } else if constexpr (is_double) {
+      return __builtin_bit_cast(U, 0x7ff0000000000000ULL);
+    } else {
+      return U();
+    }
+  }
+
+  static constexpr U quiet_NaN()
+  {
+    if constexpr (is_float) {
+      return __builtin_bit_cast(U, 0x7fc00000U);
+    } else if constexpr (is_double) {
+      return __builtin_bit_cast(U, 0x7ff8000000000000ULL);
+    } else {
+      return U();
+    }
+  }
+
+  static constexpr U signaling_NaN()
+  {
+    if constexpr (is_float) {
+      return __builtin_bit_cast(U, 0x7fa00000U);
+    } else if constexpr (is_double) {
+      return __builtin_bit_cast(U, 0x7ff4000000000000ULL);
+    } else {
+      return U();
+    }
+  }
+
+  static constexpr U denorm_min()
+  {
+    if constexpr (is_float) {
+      return 0x1p-149f;
+    } else if constexpr (is_double) {
+      return 0x1p-1074;
+    } else {
+      return U();
+    }
+  }
+};
+
+// Share the implementation and evaluated members across cv qualifications.
+template <class T>
+struct numeric_limits<T const> : numeric_limits<T> {};
+
+template <class T>
+struct numeric_limits<T volatile> : numeric_limits<T> {};
+
+template <class T>
+struct numeric_limits<T const volatile> : numeric_limits<T> {};
+
+}  // namespace nvcxx::std

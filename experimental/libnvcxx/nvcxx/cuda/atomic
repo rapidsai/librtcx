@@ -1,0 +1,198 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#include <nvcxx/cuda/detail/config>
+#include <nvcxx/cuda/std/atomic>
+
+namespace nvcxx {
+
+template <class T, thread_scope Scope = thread_scope_system>
+struct atomic_ref {
+  T& ref;
+
+  using value_type = T;
+
+  __device__ explicit constexpr atomic_ref(T& t) : ref{t} {}
+
+ private:
+  template <int Success>
+  __device__ bool compare_exchange_failure(T& expected, T desired, memory_order failure) const
+  {
+    switch (failure) {
+      case memory_order_relaxed:
+        return __nv_atomic_compare_exchange_n(
+          &ref, &expected, desired, false, Success, __NV_ATOMIC_RELAXED, Scope);
+      case memory_order_consume:
+        return __nv_atomic_compare_exchange_n(
+          &ref, &expected, desired, false, Success, __NV_ATOMIC_CONSUME, Scope);
+      case memory_order_acquire:
+        return __nv_atomic_compare_exchange_n(
+          &ref, &expected, desired, false, Success, __NV_ATOMIC_ACQUIRE, Scope);
+      case memory_order_seq_cst:
+        return __nv_atomic_compare_exchange_n(
+          &ref, &expected, desired, false, Success, __NV_ATOMIC_SEQ_CST, Scope);
+      default: __builtin_unreachable();
+    }
+  }
+
+ public:
+  __device__ bool compare_exchange_strong(T& expected,
+                                          T desired,
+                                          memory_order success,
+                                          memory_order failure) const
+  {
+    switch (success) {
+      case memory_order_relaxed:
+        return compare_exchange_failure<__NV_ATOMIC_RELAXED>(expected, desired, failure);
+      case memory_order_consume:
+        return compare_exchange_failure<__NV_ATOMIC_CONSUME>(expected, desired, failure);
+      case memory_order_acquire:
+        return compare_exchange_failure<__NV_ATOMIC_ACQUIRE>(expected, desired, failure);
+      case memory_order_release:
+        return compare_exchange_failure<__NV_ATOMIC_RELEASE>(expected, desired, failure);
+      case memory_order_acq_rel:
+        return compare_exchange_failure<__NV_ATOMIC_ACQ_REL>(expected, desired, failure);
+      case memory_order_seq_cst:
+        return compare_exchange_failure<__NV_ATOMIC_SEQ_CST>(expected, desired, failure);
+    }
+    __builtin_unreachable();
+  }
+
+  __device__ bool compare_exchange_strong(T& expected,
+                                          T desired,
+                                          memory_order order = memory_order_seq_cst) const
+  {
+    memory_order failure = order == memory_order_acq_rel   ? memory_order_acquire
+                           : order == memory_order_release ? memory_order_relaxed
+                                                           : order;
+    return compare_exchange_strong(expected, desired, order, failure);
+  }
+
+  __device__ bool compare_exchange_weak(T& expected,
+                                        T desired,
+                                        memory_order success,
+                                        memory_order failure) const
+  {
+    return compare_exchange_strong(expected, desired, success, failure);
+  }
+
+  __device__ bool compare_exchange_weak(T& expected,
+                                        T desired,
+                                        memory_order order = memory_order_seq_cst) const
+  {
+    return compare_exchange_strong(expected, desired, order);
+  }
+
+  __device__ T exchange(T v, memory_order order = memory_order_seq_cst) const
+  {
+    switch (order) {
+      case memory_order_relaxed: return __nv_atomic_exchange_n(&ref, v, __NV_ATOMIC_RELAXED, Scope);
+      case memory_order_consume: return __nv_atomic_exchange_n(&ref, v, __NV_ATOMIC_CONSUME, Scope);
+      case memory_order_acquire: return __nv_atomic_exchange_n(&ref, v, __NV_ATOMIC_ACQUIRE, Scope);
+      case memory_order_release: return __nv_atomic_exchange_n(&ref, v, __NV_ATOMIC_RELEASE, Scope);
+      case memory_order_acq_rel: return __nv_atomic_exchange_n(&ref, v, __NV_ATOMIC_ACQ_REL, Scope);
+      case memory_order_seq_cst: return __nv_atomic_exchange_n(&ref, v, __NV_ATOMIC_SEQ_CST, Scope);
+    }
+    __builtin_unreachable();
+  }
+
+  __device__ T fetch_add(T v, memory_order order = memory_order_seq_cst) const
+  {
+    auto* address = reinterpret_cast<__make_unsigned(T)*>(&ref);
+    switch (order) {
+      case memory_order_relaxed:
+        return __nv_atomic_fetch_add(address, v, __NV_ATOMIC_RELAXED, Scope);
+      case memory_order_consume:
+        return __nv_atomic_fetch_add(address, v, __NV_ATOMIC_CONSUME, Scope);
+      case memory_order_acquire:
+        return __nv_atomic_fetch_add(address, v, __NV_ATOMIC_ACQUIRE, Scope);
+      case memory_order_release:
+        return __nv_atomic_fetch_add(address, v, __NV_ATOMIC_RELEASE, Scope);
+      case memory_order_acq_rel:
+        return __nv_atomic_fetch_add(address, v, __NV_ATOMIC_ACQ_REL, Scope);
+      case memory_order_seq_cst:
+        return __nv_atomic_fetch_add(address, v, __NV_ATOMIC_SEQ_CST, Scope);
+    }
+    __builtin_unreachable();
+  }
+
+  __device__ T fetch_sub(T v, memory_order order = memory_order_seq_cst) const
+  {
+    auto* address = reinterpret_cast<__make_unsigned(T)*>(&ref);
+    switch (order) {
+      case memory_order_relaxed:
+        return __nv_atomic_fetch_sub(address, v, __NV_ATOMIC_RELAXED, Scope);
+      case memory_order_consume:
+        return __nv_atomic_fetch_sub(address, v, __NV_ATOMIC_CONSUME, Scope);
+      case memory_order_acquire:
+        return __nv_atomic_fetch_sub(address, v, __NV_ATOMIC_ACQUIRE, Scope);
+      case memory_order_release:
+        return __nv_atomic_fetch_sub(address, v, __NV_ATOMIC_RELEASE, Scope);
+      case memory_order_acq_rel:
+        return __nv_atomic_fetch_sub(address, v, __NV_ATOMIC_ACQ_REL, Scope);
+      case memory_order_seq_cst:
+        return __nv_atomic_fetch_sub(address, v, __NV_ATOMIC_SEQ_CST, Scope);
+    }
+    __builtin_unreachable();
+  }
+
+  __device__ T fetch_min(T v, memory_order order = memory_order_seq_cst) const
+  {
+    switch (order) {
+      case memory_order_relaxed: return __nv_atomic_fetch_min(&ref, v, __NV_ATOMIC_RELAXED, Scope);
+      case memory_order_consume: return __nv_atomic_fetch_min(&ref, v, __NV_ATOMIC_CONSUME, Scope);
+      case memory_order_acquire: return __nv_atomic_fetch_min(&ref, v, __NV_ATOMIC_ACQUIRE, Scope);
+      case memory_order_release: return __nv_atomic_fetch_min(&ref, v, __NV_ATOMIC_RELEASE, Scope);
+      case memory_order_acq_rel: return __nv_atomic_fetch_min(&ref, v, __NV_ATOMIC_ACQ_REL, Scope);
+      case memory_order_seq_cst: return __nv_atomic_fetch_min(&ref, v, __NV_ATOMIC_SEQ_CST, Scope);
+    }
+    __builtin_unreachable();
+  }
+
+  __device__ T fetch_or(T v, memory_order order = memory_order_seq_cst) const
+  {
+    switch (order) {
+      case memory_order_relaxed: return __nv_atomic_fetch_or(&ref, v, __NV_ATOMIC_RELAXED, Scope);
+      case memory_order_consume: return __nv_atomic_fetch_or(&ref, v, __NV_ATOMIC_CONSUME, Scope);
+      case memory_order_acquire: return __nv_atomic_fetch_or(&ref, v, __NV_ATOMIC_ACQUIRE, Scope);
+      case memory_order_release: return __nv_atomic_fetch_or(&ref, v, __NV_ATOMIC_RELEASE, Scope);
+      case memory_order_acq_rel: return __nv_atomic_fetch_or(&ref, v, __NV_ATOMIC_ACQ_REL, Scope);
+      case memory_order_seq_cst: return __nv_atomic_fetch_or(&ref, v, __NV_ATOMIC_SEQ_CST, Scope);
+    }
+    __builtin_unreachable();
+  }
+
+  __device__ T fetch_and(T v, memory_order order = memory_order_seq_cst) const
+  {
+    switch (order) {
+      case memory_order_relaxed: return __nv_atomic_fetch_and(&ref, v, __NV_ATOMIC_RELAXED, Scope);
+      case memory_order_consume: return __nv_atomic_fetch_and(&ref, v, __NV_ATOMIC_CONSUME, Scope);
+      case memory_order_acquire: return __nv_atomic_fetch_and(&ref, v, __NV_ATOMIC_ACQUIRE, Scope);
+      case memory_order_release: return __nv_atomic_fetch_and(&ref, v, __NV_ATOMIC_RELEASE, Scope);
+      case memory_order_acq_rel: return __nv_atomic_fetch_and(&ref, v, __NV_ATOMIC_ACQ_REL, Scope);
+      case memory_order_seq_cst: return __nv_atomic_fetch_and(&ref, v, __NV_ATOMIC_SEQ_CST, Scope);
+    }
+    __builtin_unreachable();
+  }
+
+  __device__ T fetch_max(T const& v, memory_order order = memory_order_seq_cst) const
+  {
+    switch (order) {
+      case memory_order_relaxed: return __nv_atomic_fetch_max(&ref, v, __NV_ATOMIC_RELAXED, Scope);
+      case memory_order_consume: return __nv_atomic_fetch_max(&ref, v, __NV_ATOMIC_CONSUME, Scope);
+      case memory_order_acquire: return __nv_atomic_fetch_max(&ref, v, __NV_ATOMIC_ACQUIRE, Scope);
+      case memory_order_release: return __nv_atomic_fetch_max(&ref, v, __NV_ATOMIC_RELEASE, Scope);
+      case memory_order_acq_rel: return __nv_atomic_fetch_max(&ref, v, __NV_ATOMIC_ACQ_REL, Scope);
+      case memory_order_seq_cst: return __nv_atomic_fetch_max(&ref, v, __NV_ATOMIC_SEQ_CST, Scope);
+    }
+    __builtin_unreachable();
+  }
+};
+
+template <class T>
+atomic_ref(T&) -> atomic_ref<T>;
+
+}  // namespace nvcxx

@@ -1,0 +1,21 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#include <nvcxx/cuda/std/bit>
+
+#include <nvcxx/cuda/integer_math.abs_diff.h>
+#include <nvcxx/cuda/integer_math.ceil_div.h>
+#include <nvcxx/cuda/integer_math.ceil_ilog2.h>
+#include <nvcxx/cuda/integer_math.ilog10.h>
+#include <nvcxx/cuda/integer_math.ilog2.h>
+#include <nvcxx/cuda/integer_math.ipow.h>
+#include <nvcxx/cuda/integer_math.is_power_of_two.h>
+#include <nvcxx/cuda/integer_math.neg.h>
+#include <nvcxx/cuda/integer_math.next_power_of_two.h>
+#include <nvcxx/cuda/integer_math.prev_power_of_two.h>
+#include <nvcxx/cuda/integer_math.round_down.h>
+#include <nvcxx/cuda/integer_math.round_up.h>
+#include <nvcxx/cuda/integer_math.uabs.h>
