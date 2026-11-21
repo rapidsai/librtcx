@@ -21,6 +21,7 @@ project(rtcx VERSION 0.2.0 LANGUAGES CXX)
 option(RTCX_STATIC_LINK_NVRTC "Use static linking for NVRTC" OFF)
 option(RTCX_STATIC_LINK_NVJITLINK "Use static linking for nvJitLink" OFF)
 option(RTCX_BUILD_TESTS "Build rtcx tests" ${PROJECT_IS_TOP_LEVEL})
+set(RTCX_EMBED_COMPRESSION_LEVEL 9 CACHE STRING "Zstd compression level for embedded data")
 
 rapids_find_package(CUDAToolkit 12.9 REQUIRED BUILD_EXPORT_SET rtcx-exports
                     INSTALL_EXPORT_SET rtcx-exports)
@@ -88,6 +89,8 @@ set_target_properties(rtcx_hash
 
 target_include_directories(rtcx_hash PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(rtcx_hash PRIVATE $<BUILD_LOCAL_INTERFACE:xxhash>)
+target_compile_definitions(rtcx_hash
+                           PRIVATE RTCX_EMBED_COMPRESSION_LEVEL=${RTCX_EMBED_COMPRESSION_LEVEL})
 
 add_library(rtcx STATIC
             src/rtcx.cpp src/algorithm_launcher.cpp src/algorithm_planner.cpp
