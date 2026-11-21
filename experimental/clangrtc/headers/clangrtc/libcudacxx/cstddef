@@ -1,0 +1,24 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
+ * @file cstddef
+ * @brief Forward the device subset of <cstddef> to libcudacxx without host C++ headers.
+ */
+#pragma once
+
+#include <clangrtc/libcudacxx/config.hpp>
+#include <cuda/std/cstddef>
+
+namespace std
+{
+
+using max_align_t = cuda::std::max_align_t;
+using nullptr_t = cuda::std::nullptr_t;
+using ptrdiff_t = cuda::std::ptrdiff_t;
+using size_t = cuda::std::size_t;
+using byte = cuda::std::byte;
+
+} // namespace std

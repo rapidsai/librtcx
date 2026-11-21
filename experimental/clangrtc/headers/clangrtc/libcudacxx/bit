@@ -1,0 +1,27 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/**
+ * @file bit
+ * @brief Forward the device subset of <bit> to libcudacxx without host C++ headers.
+ */
+#pragma once
+
+#include <clangrtc/libcudacxx/config.hpp>
+#include <cuda/std/bit>
+
+namespace std
+{
+using ::cuda::std::bit_cast;
+using ::cuda::std::bit_ceil;
+using ::cuda::std::bit_floor;
+using ::cuda::std::bit_width;
+using ::cuda::std::countl_one;
+using ::cuda::std::countl_zero;
+using ::cuda::std::countr_one;
+using ::cuda::std::countr_zero;
+using ::cuda::std::endian;
+using ::cuda::std::has_single_bit;
+using ::cuda::std::popcount;
+using ::cuda::std::rotl;
+using ::cuda::std::rotr;
+} // namespace std

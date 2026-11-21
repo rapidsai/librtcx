@@ -1,0 +1,14 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
+ * @file cassert
+ * @brief Forward the device subset of <cassert> to libcudacxx without host C++ headers.
+ */
+#pragma once
+
+#include <assert.h>
+#include <clangrtc/libcudacxx/config.hpp>
+#include <cuda/std/cassert>

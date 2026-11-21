@@ -1,0 +1,26 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/**
+ * @file cstdlib
+ * @brief Forward the device subset of <cstdlib> to libcudacxx without host C++ headers.
+ */
+#pragma once
+
+#include <clangrtc/libcudacxx/config.hpp>
+#include <cuda/std/cstdlib>
+
+namespace std
+{
+using ::cuda::std::abs;
+using ::cuda::std::aligned_alloc;
+using ::cuda::std::div;
+using ::cuda::std::div_t;
+using ::cuda::std::free;
+using ::cuda::std::labs;
+using ::cuda::std::ldiv;
+using ::cuda::std::ldiv_t;
+using ::cuda::std::llabs;
+using ::cuda::std::lldiv;
+using ::cuda::std::lldiv_t;
+using ::cuda::std::malloc;
+} // namespace std

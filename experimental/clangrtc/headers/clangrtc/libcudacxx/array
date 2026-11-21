@@ -1,0 +1,17 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/**
+ * @file array
+ * @brief Forward the device subset of <array> to libcudacxx without host C++ headers.
+ */
+#pragma once
+
+#include <clangrtc/libcudacxx/config.hpp>
+#include <cuda/std/array>
+
+namespace std
+{
+using ::cuda::std::array;
+using ::cuda::std::get;
+using ::cuda::std::to_array;
+} // namespace std

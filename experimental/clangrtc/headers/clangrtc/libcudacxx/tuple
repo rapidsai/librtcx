@@ -1,0 +1,24 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/**
+ * @file tuple
+ * @brief Forward the device subset of <tuple> to libcudacxx without host C++ headers.
+ */
+#pragma once
+
+#include <clangrtc/libcudacxx/config.hpp>
+#include <cuda/std/tuple>
+
+namespace std
+{
+using ::cuda::std::apply;
+using ::cuda::std::forward_as_tuple;
+using ::cuda::std::get;
+using ::cuda::std::ignore;
+using ::cuda::std::make_from_tuple;
+using ::cuda::std::make_tuple;
+using ::cuda::std::tie;
+using ::cuda::std::tuple;
+using ::cuda::std::tuple_cat;
+using ::cuda::std::tuple_element_t;
+} // namespace std

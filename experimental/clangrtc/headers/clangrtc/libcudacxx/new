@@ -1,0 +1,30 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/**
+ * @file new
+ * @brief Supply allocation tags consumed by Clang's CUDA <new> wrapper and libcudacxx.
+ *
+ * Clang's resource header cuda_wrappers/new supplies the device allocation operators.
+ * libcudacxx obtains these tags from <new> when compiling with Clang.
+ */
+#pragma once
+
+#include <stddef.h>
+
+namespace std
+{
+/** @brief Select the nonthrowing allocation overloads supplied by Clang's CUDA wrapper. */
+struct nothrow_t
+{
+    /** @brief Construct an explicit allocation tag. */
+    __host__ __device__ explicit constexpr nothrow_t() = default;
+};
+
+/** @brief Nonthrowing allocation tag instance. */
+inline constexpr nothrow_t nothrow{};
+
+/** @brief Standard alignment tag with the compiler's required underlying type. */
+enum class align_val_t : size_t
+{
+};
+} // namespace std

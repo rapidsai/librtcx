@@ -1,0 +1,18 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/**
+ * @file span
+ * @brief Forward the device subset of <span> to libcudacxx without host C++ headers.
+ */
+#pragma once
+
+#include <clangrtc/libcudacxx/config.hpp>
+#include <cuda/std/span>
+
+namespace std
+{
+using ::cuda::std::as_bytes;
+using ::cuda::std::as_writable_bytes;
+using ::cuda::std::dynamic_extent;
+using ::cuda::std::span;
+} // namespace std

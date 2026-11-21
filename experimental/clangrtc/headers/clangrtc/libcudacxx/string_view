@@ -1,0 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/**
+ * @file string_view
+ * @brief Forward the device subset of <string_view> to libcudacxx without host C++ headers.
+ */
+#pragma once
+
+#include <clangrtc/libcudacxx/config.hpp>
+#include <cuda/std/string_view>
+
+namespace std
+{
+using ::cuda::std::basic_string_view;
+using ::cuda::std::string_view;
+using ::cuda::std::u16string_view;
+using ::cuda::std::u32string_view;
+using ::cuda::std::u8string_view;
+} // namespace std

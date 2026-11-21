@@ -1,0 +1,30 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/**
+ * @file utility
+ * @brief Forward the device subset of <utility> to libcudacxx without host C++ headers.
+ */
+#pragma once
+
+#include <clangrtc/libcudacxx/config.hpp>
+#include <cuda/std/utility>
+
+namespace std
+{
+using ::cuda::std::as_const;
+using ::cuda::std::declval;
+using ::cuda::std::exchange;
+using ::cuda::std::forward;
+using ::cuda::std::forward_like;
+using ::cuda::std::index_sequence;
+using ::cuda::std::index_sequence_for;
+using ::cuda::std::integer_sequence;
+using ::cuda::std::make_index_sequence;
+using ::cuda::std::make_integer_sequence;
+using ::cuda::std::make_pair;
+using ::cuda::std::move;
+using ::cuda::std::pair;
+using ::cuda::std::piecewise_construct;
+using ::cuda::std::piecewise_construct_t;
+using ::cuda::std::swap;
+} // namespace std
