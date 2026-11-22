@@ -12,14 +12,13 @@
 #include <array>
 #include <charconv>
 #include <limits>
-#include <llvm/ADT/ArrayRef.h>
 #include <span>
 #include <string_view>
 
 namespace cr
 {
-/** @brief Existing serialized artifact format identifier. */
-inline constexpr std::string_view artifact_package_magic = "CLANGRTC2";
+/** @brief Shared package and prepared-state version; bump for incompatible format or compiler-convention changes. */
+inline constexpr std::string_view artifact_version = "CLANGRTC-27.1-ARTIFACT-1";
 
 /** @brief Number of hexadecimal characters in the serialized XXH3-128 checksum. */
 inline constexpr size_t artifact_checksum_size = content_hash_hex_size;
@@ -48,8 +47,8 @@ struct artifact_envelope
 inline artifact_envelope read_artifact_envelope(std::span<char const> package)
 {
     constexpr auto length_digits = std::numeric_limits<size_t>::digits10 + 1;
-    constexpr auto max_header_size = artifact_package_magic.size() + sizeof('\n') + length_digits + sizeof('\n') +
-                                     artifact_checksum_size + sizeof('\n');
+    constexpr auto max_header_size =
+        artifact_version.size() + sizeof('\n') + length_digits + sizeof('\n') + artifact_checksum_size + sizeof('\n');
     std::string_view header(package.data(), std::min(package.size(), max_header_size));
     size_t consumed{};
     auto field = [&] {
@@ -61,7 +60,7 @@ inline artifact_envelope read_artifact_envelope(std::span<char const> package)
         return value;
     };
 
-    CR_EXPECTS(field() == artifact_package_magic, "Not a clangrtc artifact", Failure, CLANGRTC_INVALID_ARTIFACT);
+    CR_EXPECTS(field() == artifact_version, "Not a clangrtc artifact", Failure, CLANGRTC_INVALID_ARTIFACT);
     auto length = field();
     size_t manifest_size{};
     auto parsed = std::from_chars(length.data(), length.data() + length.size(), manifest_size);

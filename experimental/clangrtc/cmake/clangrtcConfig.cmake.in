@@ -1,41 +1,35 @@
 # SPDX-License-Identifier: Apache-2.0
 @PACKAGE_INIT@
 
-set(_clangrtc_package_prefix "${PACKAGE_PREFIX_DIR}")
 set(_clangrtc_package_libdir "@PACKAGE_CMAKE_INSTALL_LIBDIR@")
 include(CMakeFindDependencyMacro)
 if(NOT @BUILD_SHARED_LIBS@)
-  # Static consumers currently resolve the upstream compiler targets themselves.
-  find_dependency(LLVM @LLVM_PACKAGE_VERSION@ EXACT CONFIG HINTS "@LLVM_DIR@")
-  find_package(MLIR CONFIG QUIET HINTS "${LLVM_DIR}/../mlir")
-  find_dependency(Clang CONFIG HINTS "@Clang_DIR@")
-  list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
-  set(CLANGRTC_STATIC_LINK_XXHASH @CLANGRTC_STATIC_LINK_XXHASH@)
-  find_dependency(xxHash)
-  if(@CLANGRTC_STATIC_LINK_NVVM@)
-    set(CLANGRTC_STATIC_LINK_NVVM ON)
-    find_dependency(NVVM)
-  endif()
-  if(@CLANGRTC_BUILD_CURTC@ AND @CLANGRTC_STATIC_LINK_NVJITLINK@)
-    set(CLANGRTC_STATIC_LINK_NVJITLINK ON)
-    if(NOT "@CLANGRTC_BUNDLED_NVJITLINK_ROOT@" STREQUAL "" AND NOT NVJitLink_ROOT
-       AND "$ENV{NVJitLink_ROOT}" STREQUAL "")
-      set(NVJitLink_ROOT "${_clangrtc_package_prefix}")
+    # Static consumers currently resolve the upstream compiler targets themselves.
+    find_dependency(LLVM @LLVM_PACKAGE_VERSION@ EXACT CONFIG HINTS "@LLVM_DIR@")
+    find_dependency(Clang CONFIG HINTS "@Clang_DIR@")
+    if(@CLANGRTC_BUILD_CURTC@ AND @CLANGRTC_STATIC_LINK_NVJITLINK@)
+        find_dependency(Threads)
+        if(NOT TARGET clangrtc::nvPTXCompiler)
+            add_library(clangrtc::nvPTXCompiler STATIC IMPORTED)
+            set_target_properties(
+                clangrtc::nvPTXCompiler
+                PROPERTIES IMPORTED_LOCATION
+                           "${_clangrtc_package_libdir}/libnvptxcompiler_static.a")
+        endif()
+        if(NOT TARGET clangrtc::nvJitLink)
+            add_library(clangrtc::nvJitLink STATIC IMPORTED)
+            set_target_properties(
+                clangrtc::nvJitLink
+                PROPERTIES IMPORTED_LOCATION "${_clangrtc_package_libdir}/libnvJitLink_static.a"
+                           INTERFACE_LINK_LIBRARIES
+                           "clangrtc::nvPTXCompiler;Threads::Threads;${CMAKE_DL_LIBS}")
+        endif()
     endif()
-    find_dependency(NVJitLink)
-  endif()
-  list(REMOVE_AT CMAKE_MODULE_PATH 0)
 endif()
 include("${CMAKE_CURRENT_LIST_DIR}/clangrtcTargets.cmake")
 if(NOT @BUILD_SHARED_LIBS@)
-  # Archives cannot carry a runtime search path; their installed consumers own it.
-  set(_clangrtc_backend_rpath "LINKER:-rpath,${_clangrtc_package_libdir}")
-  if(NOT "@CLANGRTC_BUNDLED_NVVM_ROOT@" STREQUAL "")
+    # Archives cannot carry a runtime search path; their installed consumers own it.
+    set(_clangrtc_backend_rpath "LINKER:-rpath,${_clangrtc_package_libdir}")
     target_link_options(clangrtc::clangrtc INTERFACE "${_clangrtc_backend_rpath}")
-  endif()
-  if(@CLANGRTC_BUILD_CURTC@ AND NOT @CLANGRTC_STATIC_LINK_NVJITLINK@
-     AND NOT "@CLANGRTC_BUNDLED_NVJITLINK_ROOT@" STREQUAL "")
-    target_link_options(clangrtc::curtc INTERFACE "${_clangrtc_backend_rpath}")
-  endif()
 endif()
 check_required_components(clangrtc)

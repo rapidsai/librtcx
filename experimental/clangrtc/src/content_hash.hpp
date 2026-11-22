@@ -1,19 +1,16 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /**
  * @file content_hash.hpp
- * @brief Shared XXH3-128 content identities for artifacts and compilation caches.
+ * @brief Shared XXH3-128 content identities using our private inline xxHash implementation.
  */
 #pragma once
 
-#include <cstdint>
 #include <format>
-#if defined(__x86_64__) || defined(__i386__) || defined(_M_X64) || defined(_M_IX86)
-#include <xxh_x86dispatch.h>
-#else
-#include <xxhash.h>
-#endif
 #include <span>
 #include <string>
+
+#define XXH_INLINE_ALL
+#include <xxhash.h>
 
 namespace cr
 {

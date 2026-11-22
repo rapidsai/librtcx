@@ -57,7 +57,7 @@ TEST_F(HeaderModesTest, MinimalKeepsIntrinsics)
     for (auto declaration : {"cudaError_t value;", "cudaTextureObject_t value;", "cudaStream_t value;"})
     {
         SCOPED_TRACE(declaration);
-        auto invalid = compile(request(declaration, {}), options);
+        auto invalid = compile(request(std::format("#include <cuda_runtime_api.h>\n{}", declaration), {}), options);
         EXPECT_EQ(invalid.status, CLANGRTC_COMPILATION_FAILED) << invalid.log();
     }
 }

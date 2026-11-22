@@ -7,37 +7,35 @@
 include_guard(GLOBAL)
 include(FetchContent)
 
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    message(FATAL_ERROR "Pinned CUDA compiler packages support Linux only.")
+endif()
+
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64)$")
+    set(_clangrtc_cuda_platform linux-x86_64)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)$")
+    set(_clangrtc_cuda_platform linux-sbsa)
+else()
+    message(FATAL_ERROR "No pinned CUDA compiler package for ${CMAKE_SYSTEM_PROCESSOR}.")
+endif()
+
+set(_clangrtc_cuda_manifest_path "${CMAKE_CURRENT_LIST_DIR}/cuda-compiler-libraries.json")
+set_property(
+    DIRECTORY
+    APPEND
+    PROPERTY CMAKE_CONFIGURE_DEPENDS "${_clangrtc_cuda_manifest_path}")
+file(READ "${_clangrtc_cuda_manifest_path}" _clangrtc_cuda_manifest)
+
 # @brief Populate one checksum-pinned NVIDIA redistributable for the target platform.
 function(_clangrtc_fetch_cuda_component component output)
-
-    if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        message(FATAL_ERROR "Automatic CUDA compiler downloads support Linux only. "
-                            "Provide dependency roots and disable CLANGRTC_FETCH_CUDA_COMPILERS.")
-    endif()
-
-    if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64)$")
-        set(platform linux-x86_64)
-    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)$")
-        set(platform linux-sbsa)
-    else()
-        message(FATAL_ERROR "No pinned CUDA compiler package for ${CMAKE_SYSTEM_PROCESSOR}. "
-                            "Provide dependency roots and disable CLANGRTC_FETCH_CUDA_COMPILERS.")
-    endif()
-
-    set(manifest_path "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/cuda-compiler-libraries.json")
-    set_property(
-        DIRECTORY
-        APPEND
-        PROPERTY CMAKE_CONFIGURE_DEPENDS "${manifest_path}")
-    file(READ "${manifest_path}" manifest)
-    string(JSON package GET "${manifest}" components "${component}")
+    string(JSON package GET "${_clangrtc_cuda_manifest}" components "${component}")
     string(JSON version GET "${package}" version)
-    string(JSON binary GET "${package}" "${platform}")
+    string(JSON binary GET "${package}" "${_clangrtc_cuda_platform}")
     string(JSON archive GET "${binary}" relative_path)
     string(JSON checksum GET "${binary}" sha256)
-    set(source "${CLANGRTC_CUDA_COMPILER_CACHE}/${component}-${platform}-${version}")
+    set(source "${CLANGRTC_CUDA_COMPILER_CACHE}/${component}-${_clangrtc_cuda_platform}-${version}")
     # cmake-lint: disable=C0103
-    set(FETCHCONTENT_BASE_DIR "${CLANGRTC_CUDA_COMPILER_CACHE}/populate-${platform}")
+    set(FETCHCONTENT_BASE_DIR "${CLANGRTC_CUDA_COMPILER_CACHE}/populate-${_clangrtc_cuda_platform}")
     FetchContent_Declare(
         clangrtc_${component}
         URL "https://developer.download.nvidia.com/compute/cuda/redist/${archive}"
@@ -59,177 +57,97 @@ function(_clangrtc_fetch_cuda_component component output)
         PARENT_SCOPE)
 endfunction()
 
-# @brief Preserve caller overrides while clearing cached paths owned by a previous fetched package.
-function(_clangrtc_cuda_override root_variable managed_root output)
-    set(overridden FALSE)
-
-    foreach(variable IN ITEMS ${root_variable} ${ARGN})
-        set(value "${${variable}}")
-
-        if(NOT value)
-            continue()
-        endif()
-
-        set(managed FALSE)
-
-        if(managed_root)
-            cmake_path(IS_PREFIX managed_root "${value}" NORMALIZE managed)
-        endif()
-
-        if(managed)
-            unset(${variable} CACHE)
-        else()
-            set(overridden TRUE)
-        endif()
-
-    endforeach()
-
-    if(root_variable MATCHES "_ROOT$"
-       AND DEFINED ENV{${root_variable}}
-       AND NOT "$ENV{${root_variable}}" STREQUAL "")
-        set(overridden TRUE)
-    endif()
-
-    set(${output}
-        "${overridden}"
-        PARENT_SCOPE)
-endfunction()
-
-# @brief Select the pinned shared libNVVM unless the caller supplies an installation or archive.
+# @brief Select the pinned shared libNVVM package for the target platform.
 function(clangrtc_fetch_nvvm)
-    _clangrtc_cuda_override(
-        NVVM_ROOT "${_CLANGRTC_FETCHED_NVVM_ROOT}" overridden CLANGRTC_NVVM_INCLUDE_DIR
-        CLANGRTC_NVVM_LIBRARY CLANGRTC_NVVM_STATIC_LIBRARY)
-
-    if(overridden OR CLANGRTC_STATIC_LINK_NVVM)
-        return()
-    endif()
-
     _clangrtc_fetch_cuda_component(libnvvm root)
-    set(NVVM_ROOT
-        "${root}"
-        PARENT_SCOPE)
     set(CLANGRTC_NVVM_INCLUDE_DIR
         "${root}/nvvm/include"
         PARENT_SCOPE)
-    set(CLANGRTC_NVVM_LIBRARY
+    set(CLANGRTC_NVVM_SELECTED_LIBRARY
         "${root}/nvvm/lib64/libnvvm.so"
         PARENT_SCOPE)
     set(CLANGRTC_BUNDLED_NVVM_ROOT
         "${root}"
         PARENT_SCOPE)
-    set(_CLANGRTC_FETCHED_NVVM_ROOT
-        "${root}"
-        CACHE INTERNAL "Previously fetched libNVVM root" FORCE)
 endfunction()
 
 # @brief Select pinned nvJitLink and its matching compiler archive when static linkage is requested.
 function(clangrtc_fetch_nvjitlink)
-    _clangrtc_cuda_override(
-        NVJitLink_ROOT "${_CLANGRTC_FETCHED_NVJITLINK_ROOT}" overridden
-        CLANGRTC_NVJITLINK_INCLUDE_DIR CLANGRTC_NVJITLINK_LIBRARY CLANGRTC_NVJITLINK_STATIC_LIBRARY)
-
-    if(overridden)
-        return()
-    endif()
-
     _clangrtc_fetch_cuda_component(libnvjitlink root)
-    set(NVJitLink_ROOT
-        "${root}"
-        PARENT_SCOPE)
     set(CLANGRTC_NVJITLINK_INCLUDE_DIR
         "${root}/include"
         PARENT_SCOPE)
-    if(CLANGRTC_STATIC_LINK_NVJITLINK)
-        set(CLANGRTC_NVJITLINK_STATIC_LIBRARY
-            "${root}/lib/libnvJitLink_static.a"
-            PARENT_SCOPE)
-    else()
-        set(CLANGRTC_NVJITLINK_LIBRARY
-            "${root}/lib/libnvJitLink.so"
-            PARENT_SCOPE)
-    endif()
-
     set(CLANGRTC_BUNDLED_NVJITLINK_ROOT
         "${root}"
         PARENT_SCOPE)
-    set(_CLANGRTC_FETCHED_NVJITLINK_ROOT
-        "${root}"
-        CACHE INTERNAL "Previously fetched nvJitLink root" FORCE)
 
     if(CLANGRTC_STATIC_LINK_NVJITLINK)
-        _clangrtc_cuda_override(CLANGRTC_NVPTXCOMPILER_STATIC_LIBRARY
-                                "${_CLANGRTC_FETCHED_NVPTXCOMPILER_ROOT}" compiler_overridden)
+        _clangrtc_fetch_cuda_component(libnvptxcompiler compiler_root)
+        set(compiler_library "${compiler_root}/lib/libnvptxcompiler_static.a")
+        set(CLANGRTC_NVPTXCOMPILER_STATIC_LIBRARY
+            "${compiler_library}"
+            PARENT_SCOPE)
+        set(CLANGRTC_BUNDLED_NVPTXCOMPILER_ROOT
+            "${compiler_root}"
+            PARENT_SCOPE)
 
-        if(NOT compiler_overridden)
-            _clangrtc_fetch_cuda_component(libnvptxcompiler compiler_root)
-            set(CLANGRTC_NVPTXCOMPILER_STATIC_LIBRARY
-                "${compiler_root}/lib/libnvptxcompiler_static.a"
-                PARENT_SCOPE)
-            set(CLANGRTC_BUNDLED_NVPTXCOMPILER_ROOT
-                "${compiler_root}"
-                PARENT_SCOPE)
-            set(_CLANGRTC_FETCHED_NVPTXCOMPILER_ROOT
-                "${compiler_root}"
-                CACHE INTERNAL "Previously fetched nvPTXCompiler root" FORCE)
-        endif()
-
+        add_library(clangrtc::nvPTXCompiler STATIC IMPORTED)
+        set_target_properties(clangrtc::nvPTXCompiler PROPERTIES IMPORTED_LOCATION
+                                                                 "${compiler_library}")
+        find_package(Threads REQUIRED)
+        add_library(clangrtc::nvJitLink STATIC IMPORTED)
+        set_target_properties(
+            clangrtc::nvJitLink
+            PROPERTIES INTERFACE_LINK_LIBRARIES
+                       "clangrtc::nvPTXCompiler;Threads::Threads;${CMAKE_DL_LIBS}")
+        set(library "${root}/lib/libnvJitLink_static.a")
+    else()
+        add_library(clangrtc::nvJitLink SHARED IMPORTED)
+        set(library "${root}/lib/libnvJitLink.so")
     endif()
+
+    set_target_properties(
+        clangrtc::nvJitLink PROPERTIES IMPORTED_LOCATION "${library}" INTERFACE_INCLUDE_DIRECTORIES
+                                                                      "${root}/include")
+    set(CLANGRTC_NVJITLINK_SELECTED_LIBRARY
+        "${library}"
+        PARENT_SCOPE)
 
 endfunction()
 
 # @brief Obtain private driver headers without linking or installing the package's CUDA runtime.
 function(clangrtc_fetch_cuda_driver_headers)
-    _clangrtc_cuda_override(CLANGRTC_CUDA_DRIVER_INCLUDE_DIR
-                            "${_CLANGRTC_FETCHED_CUDA_DRIVER_ROOT}" overridden)
-
-    if(overridden)
-        return()
-    endif()
-
     _clangrtc_fetch_cuda_component(cuda_cudart root)
     set(CLANGRTC_CUDA_DRIVER_INCLUDE_DIR
         "${root}/include"
         PARENT_SCOPE)
-    set(_CLANGRTC_FETCHED_CUDA_DRIVER_ROOT
-        "${root}"
-        CACHE INTERNAL "Previously fetched driver header package" FORCE)
 endfunction()
 
-# @brief Install fetched runtime libraries or static-link dependencies alongside clangrtc.
+# @brief Install the fetched backend libraries and their licenses for the selected linkage.
 function(clangrtc_install_cuda_compilers)
-
     foreach(component IN ITEMS NVVM NVJITLINK NVPTXCOMPILER)
         set(root "${CLANGRTC_BUNDLED_${component}_ROOT}")
 
-        if(NOT root)
-            continue()
+        if(root)
+            file(GLOB licenses "${root}/LICENSE*" "${root}/nvvm/LICENSE*")
+            install(FILES ${licenses}
+                    DESTINATION "${CMAKE_INSTALL_DATADIR}/clangrtc/licenses/${component}")
         endif()
-
-        file(GLOB licenses "${root}/LICENSE*" "${root}/nvvm/LICENSE*")
-        install(FILES ${licenses}
-                DESTINATION "${CMAKE_INSTALL_DATADIR}/clangrtc/licenses/${component}")
-
-        if(component STREQUAL "NVVM")
-            file(GLOB libraries "${root}/nvvm/lib64/libnvvm.so*")
-            install(FILES ${libraries} DESTINATION "${CMAKE_INSTALL_LIBDIR}")
-        elseif(component STREQUAL "NVJITLINK" AND NOT CLANGRTC_STATIC_LINK_NVJITLINK)
-            file(GLOB libraries "${root}/lib/libnvJitLink.so*")
-            install(FILES ${libraries} DESTINATION "${CMAKE_INSTALL_LIBDIR}")
-        elseif(NOT BUILD_SHARED_LIBS)
-
-            if(component STREQUAL "NVJITLINK")
-                install(FILES "${root}/lib/libnvJitLink_static.a"
-                        DESTINATION "${CMAKE_INSTALL_LIBDIR}")
-                install(FILES "${root}/include/nvJitLink.h"
-                        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
-            else()
-                install(FILES "${root}/lib/libnvptxcompiler_static.a"
-                        DESTINATION "${CMAKE_INSTALL_LIBDIR}")
-            endif()
-
-        endif()
-
     endforeach()
 
+    file(GLOB nvvm_libraries "${CLANGRTC_BUNDLED_NVVM_ROOT}/nvvm/lib64/libnvvm.so*")
+    install(FILES ${nvvm_libraries} DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+
+    if(CLANGRTC_BUILD_CURTC)
+        if(CLANGRTC_STATIC_LINK_NVJITLINK)
+            if(NOT BUILD_SHARED_LIBS)
+                install(FILES "${CLANGRTC_BUNDLED_NVJITLINK_ROOT}/lib/libnvJitLink_static.a"
+                              "${CLANGRTC_NVPTXCOMPILER_STATIC_LIBRARY}"
+                        DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+            endif()
+        else()
+            file(GLOB nvjitlink_libraries "${CLANGRTC_BUNDLED_NVJITLINK_ROOT}/lib/libnvJitLink.so*")
+            install(FILES ${nvjitlink_libraries} DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+        endif()
+    endif()
 endfunction()

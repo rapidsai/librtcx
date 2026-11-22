@@ -12,7 +12,8 @@ NUL is required. Calls are synchronous, and no C++ exception crosses either API.
 
 ## Build
 
-Requirements are CMake 3.25+, a C++20 compiler with `std::format`, and Cyan xxHash.
+Requirements are CMake 3.25+, a C++20 compiler with `std::format`, and zstd development
+files for the build-time embed generator.
 The default build fetches LLVM/Clang 23.1.5 sources and pinned NVIDIA 13.5.37
 compiler libraries. A complete CUDA toolkit is unnecessary for the core build;
 CUDA source compilation needs compatible headers/libdevice, and GPU tests need
@@ -23,19 +24,23 @@ cmake -S experimental/clangrtc -B build/clangrtc -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DCLANGRTC_BUILD_CURTC=ON \
   -DCLANGRTC_CUDA_PATH=/usr/local/cuda
-cmake --build build/clangrtc -j2
+cmake --build build/clangrtc
 ctest --test-dir build/clangrtc --output-on-failure
 ```
 
 The source build keeps LLVM archives and its installation under
 `<build>/llvm-downloads`; the inner library build is `<build>/clangrtc-build`.
 The outer build delegates installation and test discovery to it.
-`CLANGRTC_LLVM_BUILD_JOBS` limits build parallelism, defaulting to six.
+Build parallelism follows CMake and the selected build tool's defaults.
+The source build forwards the settings explicitly listed in
+[BuildLLVM.cmake](cmake/BuildLLVM.cmake); put additional target-specific setup
+in `CMAKE_TOOLCHAIN_FILE`.
 
 Set `CLANGRTC_LLVM_CACHE` to relocate the cache, or `CLANGRTC_LLVM_SOURCE_DIR`
-to use an existing source tree matching `CLANGRTC_LLVM_VERSION`. Downloads use
-an explicit version and published `CLANGRTC_LLVM_SHA256`; changing the release
-requires updating both. Cached archives are verified and reused offline.
+to use an existing source tree matching the pinned LLVM release. Its version
+and published checksum are constants in `cmake/BuildLLVM.cmake` and must be
+updated together. `ExternalProject` downloads, verifies, and extracts LLVM
+at build time, reusing matching cached archives offline.
 
 To use an existing compiler installation, set `CLANGRTC_FETCH_LLVM=OFF` and
 provide `LLVM_DIR` and `Clang_DIR`. Their matching LLVM/Clang 23+ libraries must
@@ -44,39 +49,44 @@ symbol isolation is not currently performed.
 
 ## Dependencies and linkage
 
-The default dependency linkage is shared. Select each dependency independently:
+libNVVM is shared-only. Our pinned xxHash uses its inline implementation.
+The remaining linkage choices are:
 
 | Setting | Effect when enabled |
 |---|---|
 | `BUILD_SHARED_LIBS` | Build shared clangrtc/curtc libraries; defaults to `ON`. |
-| `CLANGRTC_STATIC_LINK_NVVM` | Require a caller-provided libNVVM archive. NVIDIA does not distribute one. |
 | `CLANGRTC_STATIC_LINK_NVJITLINK` | Require nvJitLink and matching nvPTXCompiler archives. |
-| `CLANGRTC_STATIC_LINK_XXHASH` | Require a Cyan xxHash archive with x86 runtime dispatch. |
 | `CLANGRTC_STATIC_LINK_CUDART` | Link cudart statically in GPU tests. |
 
-A static request fails if the archive is unavailable; it never falls back to a
-shared library. C/C++ runtime and LLVM system-dependency linkage remain separate
+The pinned libNVVM package is shared-only. A static request for any other
+dependency fails if the archive is unavailable; it never falls back to a shared
+library. C/C++ runtime and LLVM system-dependency linkage remain separate
 choices. For example, `ZLIB_USE_STATIC_LIBS=ON` selects static zlib when supported
 by the chosen LLVM installation. The CUDA driver is loaded dynamically.
 
-`CLANGRTC_FETCH_CUDA_COMPILERS=ON` fetches the exact packages listed in
-[cuda-compiler-libraries.json](cmake/cuda-compiler-libraries.json), independently
-of the application's CUDA runtime. Set `NVVM_ROOT`, `NVJitLink_ROOT`, or explicit
-`CLANGRTC_NVVM_*` / `CLANGRTC_NVJITLINK_*` paths to select existing installations.
-Set `xxHash_ROOT` to select Cyan xxHash; x86 builds require `xxh_x86dispatch.h`
-and its dispatch entry points, including for static linkage.
+The build always fetches the exact compiler packages listed in
+[cuda-compiler-libraries.json](cmake/cuda-compiler-libraries.json) for Linux
+x86_64 or AArch64, independently of the application's CUDA runtime. Compiler
+libraries are selected for the target CPU architecture; toolkit installations
+and backend-path overrides do not select libNVVM or nvJitLink. CUDA source compilation still needs compatible CUDA headers
+and libdevice; GPU tests use the toolkit's CUDA runtime.
 
-Downloads live in `CLANGRTC_CUDA_COMPILER_CACHE`. Disable automatic downloads
-with `CLANGRTC_FETCH_CUDA_COMPILERS=OFF`. Fetched driver headers are private to
-curtc; their accompanying cudart libraries are not linked or installed.
-Installation deploys fetched backend libraries and licenses as needed. Explicit
-external dependencies retain caller-managed deployment.
+Downloads live in `CLANGRTC_CUDA_COMPILER_CACHE` and can be reused offline.
+Fetched driver headers are private to curtc; their accompanying cudart libraries
+are not linked or installed. Installation deploys the fetched compiler libraries
+and licenses as needed.
+
+The build fetches Cyan xxHash 0.8.3 with a fixed checksum and embeds its
+`XXH_INLINE_ALL` implementation in the libraries. SIMD is selected at compile
+time. There is no runtime dispatcher, system xxHash dependency, discovery, or
+compilation probe.
 
 Clang's LLVM bitcode dialect must be accepted by the selected libNVVM.
-Configuration runs a CPU-only compatibility probe for LTO and PTX generation;
-cross builds need `CMAKE_CROSSCOMPILING_EMULATOR`. This checks baseline
-compatibility, not every possible IR feature. Changing IR text or version
-metadata cannot make a modern module compatible with an older reader.
+Select compiler libraries for the target platform; configuration does not execute
+them on the build machine. Backend tests validate LTO/PTX compilation on the
+target platform, and incompatible custom combinations report compilation errors.
+Changing IR text or version metadata cannot make a modern module compatible
+with an older reader.
 
 ## Compile and prepare
 
@@ -129,7 +139,7 @@ C expressions use their existing C ABI names unchanged.
 
 ## Device headers and options
 
-Device compilation uses Clang's normal CUDA headers and compiler identity.
+Device compilation uses CUDA toolkit headers and Clang's compiler identity.
 The `nvrtc` and `hosted` profile names select the same environment; Clang does
 not define `__CUDACC_RTC__`. BMI producers include `<clangrtc/device.hpp>` after
 `module;` so the CUDA bootstrap follows the global-module-fragment declaration.
@@ -139,6 +149,25 @@ not define `__CUDACC_RTC__`. BMI producers include `<clangrtc/device.hpp>` after
 `cuda::std` without host C++ headers. Pass a CCCL include root supporting
 `_CCCL_ENABLE_FREESTANDING` with `-I`. These modes are independent and retained
 in prepared artifacts; real CUDA math, atomics, and intrinsics remain available.
+
+CUDA requests use `-nocudainc` and explicitly load the embedded
+[device.hpp](headers/clangrtc/device.hpp) bootstrap. The default environment reuses
+Clang's original CUDA wrapper. Device header modes establish their own include
+order using unmodified Clang and CUDA implementation headers. Minimal mode also
+overlays `cuda_runtime_api.h` with an empty file to prevent transitive runtime API
+imports. The device header modes require CUDA 9 or newer.
+
+`rtcx_embed` links the workaround headers and matching Clang resource headers into
+clangrtc with `COMPRESSION none`. The compiler reads them through a virtual
+filesystem: users need neither their original files nor a resource-directory option.
+The explicit lists in [EmbedHeaders.cmake](cmake/EmbedHeaders.cmake) contain
+CUDA/NVPTX support, CUDA C++ wrappers, and shared portable C definitions.
+Update those lists when adding workaround headers or upgrading LLVM.
+`CLANGRTC_RESOURCE_DIR` selects the resource headers at build time;
+`--resource-dir=PATH` can override the bundle when additional compiler resources,
+such as CPU-specific intrinsic headers, are needed.
+CUDA toolkit and host standard-library headers remain external. zstd is required
+by the build-time generator; the header bundle is uncompressed at runtime.
 
 Repeat `--clang-option=ARG` or `--nvvm-option=ARG` to forward multiple options.
 The two-entry forms are also accepted; arguments are never shell-split.
@@ -176,7 +205,8 @@ cmake --install build/clangrtc --prefix /path/to/install
 
 Consumers use `find_package(clangrtc CONFIG REQUIRED)` and link
 `clangrtc::clangrtc` or `clangrtc::curtc`. Static consumers also need the matching
-LLVM/Clang installation and selected static backend dependencies.
+LLVM/Clang installation. Required NVIDIA archives are installed with the
+package; nvPTXCompiler is fetched only for static nvJitLink.
 
 `BUILD_TESTING=ON` enables GoogleTest; select its package with `GTest_DIR` or
 disable tests to build without it. Compiler and cache suites run without a GPU.

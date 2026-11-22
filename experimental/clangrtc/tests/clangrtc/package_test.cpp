@@ -29,7 +29,6 @@
 
 namespace test
 {
-
 /** @brief Match canonical upstream XXH3-128 vectors, including an empty byte range. */
 TEST(ContentHash, UsesCanonicalXxh3_128Identities)
 {
@@ -60,7 +59,7 @@ template <class Mutate> std::string rewrite_package(std::string const &package, 
     auto bytes = json;
     bytes.append(body);
     auto digest = cr::content_hash(bytes);
-    return std::format("{}\n{}\n{}\n{}", cr::artifact_package_magic, json.size(), digest, bytes);
+    return std::format("{}\n{}\n{}\n{}", cr::artifact_version, json.size(), digest, bytes);
 }
 
 } // namespace

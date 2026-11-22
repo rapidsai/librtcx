@@ -44,11 +44,20 @@ TEST(CurtcGpu, DeviceHeaderModesExecute)
     auto source = std::string_view(R"CUDA(
 #include <array>
 #include <chrono>
+#include <cmath>
 
         extern "C" __global__ void kernel(int *out)
         {
             std::array<int, 2> values{20, 22};
             auto count = std::chrono::milliseconds(values[0] + values[1]).count();
+
+            if (std::sqrt(double(values[0] + 5)) != 5.0 || !std::isfinite(double(count)) ||
+                !std::isnan(__builtin_bit_cast(float, unsigned(threadIdx.x) | 0x7fc00000u)) ||
+                !std::isinf(__builtin_inff()) || !::isfinite(7) || ::isnan(7) || ::isinf(7))
+            {
+                return;
+            }
+
             atomicMax(out, int(count));
         }
     )CUDA");
@@ -324,7 +333,7 @@ TEST(CurtcGpu, RunsMultipleKernelsAndRuntimeLinkedFunctions)
 }
 
 /**
- * @brief Execute toolkit-provided vector factories and atomic overloads through the NVRTC compatibility profile.
+ * @brief Execute toolkit-provided vector factories and atomic overloads across device header modes.
  *
  * Covers floating-point/scoped atomics, 64-bit minimum, integer maximum/CAS, address-space predicates, warp shuffle,
  * and integer dot products on a real GPU. The caller must retain Clang's identity after the supplied CUDA headers are
@@ -366,26 +375,52 @@ TEST(CurtcGpu, RunsToolkitDeviceHelpersWithNvrtcProfile)
             assert(sum == 3.5f && precise == 1.0 && wide == 5 && *out == 26);
         }
     )CUDA";
-    std::string cuda_path = std::format("--cuda-path={}", test::CudaPath);
-    clangrtcString options[]{to_view(cuda_path), to_view("--profile=nvrtc"),
-                             to_view("--clang-option=--cuda-feature=+ptx60")};
-    curtcInput input{};
-    input.source.source = {to_view("/__gpu__/toolkit_helpers.cu"), to_view(source)};
-    input.options = options;
-    input.optionCount = std::size(options);
-    curtcRequest request{};
-    request.inputs = &input;
-    request.inputCount = 1;
-    request.target = to_view(test::gpu_target());
-    curtcLibrary raw_library{};
-    std::string log;
     auto diagnostic = [](clangrtcDiagnostic const *value, void *context) {
         static_cast<std::string *>(context)->append(value->message.data, value->message.size);
     };
-    ASSERT_EQ(curtcGet(cache.get(), &request, diagnostic, &log, &raw_library, nullptr), CLANGRTC_SUCCESS) << log;
-    std::unique_ptr<curtcLibraryImpl, decltype(&curtcReleaseLibrary)> library(raw_library, curtcReleaseLibrary);
-    CUkernel kernel{};
-    ASSERT_EQ(curtcGetKernel(library.get(), to_view("toolkit_helpers"), &kernel), CLANGRTC_SUCCESS);
-    test::launch(kernel, 26);
+
+    for (bool libcudacxx : {false, true})
+    {
+        if (libcudacxx && !test::CcclFreestanding)
+        {
+            continue;
+        }
+
+        for (bool minimal : {false, true})
+        {
+            SCOPED_TRACE(std::format("libcudacxx={}, minimal={}", libcudacxx, minimal));
+            test::Options options{std::format("--cuda-path={}", test::CudaPath), "--profile=nvrtc",
+                                  "--clang-option=--cuda-feature=+ptx60"};
+
+            if (minimal)
+            {
+                options.push_back("--minimal");
+            }
+
+            if (libcudacxx)
+            {
+                options.push_back("--stdlib=libcudacxx");
+                options.push_back(std::format("-I{}", test::CcclPath));
+            }
+
+            auto flags = test::to_views(options);
+            curtcInput input{};
+            input.source.source = {to_view("/__gpu__/toolkit_helpers.cu"), to_view(source)};
+            input.options = flags.data();
+            input.optionCount = flags.size();
+            curtcRequest request{};
+            request.inputs = &input;
+            request.inputCount = 1;
+            request.target = to_view(test::gpu_target());
+            curtcLibrary raw_library{};
+            std::string log;
+            ASSERT_EQ(curtcGet(cache.get(), &request, diagnostic, &log, &raw_library, nullptr), CLANGRTC_SUCCESS)
+                << log;
+            std::unique_ptr<curtcLibraryImpl, decltype(&curtcReleaseLibrary)> library(raw_library, curtcReleaseLibrary);
+            CUkernel kernel{};
+            ASSERT_EQ(curtcGetKernel(library.get(), to_view("toolkit_helpers"), &kernel), CLANGRTC_SUCCESS);
+            test::launch(kernel, 26);
+        }
+    }
 }
 } // namespace

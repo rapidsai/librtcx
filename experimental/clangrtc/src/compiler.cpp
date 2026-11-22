@@ -10,7 +10,9 @@
  */
 #include "artifact_package.hpp"
 #include "clangrtc.h"
-#include "embedded.hpp"
+#pragma GCC visibility push(hidden)
+#include "clangrtc_headers.hpp"
+#pragma GCC visibility pop
 #include "error.hpp"
 
 #include <algorithm>
@@ -152,14 +154,10 @@
 #define CR_NVVM_ENTRY(name) decltype(&::name) name{};
 
 /**
- * @brief Bind a declared libNVVM function pointer according to the configured linkage.
+ * @brief Resolve a declared libNVVM function pointer from the shared library.
  * @param name Full external entry-point name.
  */
-#if CLANGRTC_STATIC_LINK_NVVM
-#define CR_LOAD_NVVM_ENTRY(name) name = &::name;
-#else
 #define CR_LOAD_NVVM_ENTRY(name) name = symbol<decltype(name)>(#name);
-#endif
 
 /**
  * @brief Implementation helpers for compilation and artifact storage.
@@ -172,15 +170,11 @@ namespace cr
 /**
  * @brief Library version supplied by the CMake project definition.
  */
-constexpr std::string_view libraryVersion = CLANGRTC_VERSION;
-
-/** @brief Prepared-state ABI, including the native CUDA header and compiler-identity contract. */
-constexpr std::string_view artifact_compiler_abi = "clangrtc-package-2";
+constexpr std::string_view library_version = CLANGRTC_VERSION;
 
 /** @brief Own the libNVVM loader handle and its immutable C API dispatch table. */
 class nvvm_context
 {
-#if !CLANGRTC_STATIC_LINK_NVVM
     /** @brief Owned shared-library handle, kept open while the dispatch table is in use. */
     void *library_{};
 
@@ -206,8 +200,6 @@ class nvvm_context
 
         return result;
     }
-
-#endif
 
   public:
     /** @brief Resolved nvvmVersion entry point. */
@@ -241,13 +233,12 @@ class nvvm_context
     CR_NVVM_ENTRY(nvvmGetErrorString)
 
     /**
-     * @brief Initialize libNVVM's dispatch table using the selected static or shared backend.
+     * @brief Load libNVVM and initialize its dispatch table.
      * @throws Failure With toolchain-error status if loading or symbol resolution fails.
      * @note Constructor failures close the shared-library handle before propagating.
      */
     nvvm_context()
     {
-#if !CLANGRTC_STATIC_LINK_NVVM
         constexpr char const *library_path = CLANGRTC_NVVM_LIBRARY;
         library_ = ::dlopen(library_path, RTLD_NOW | RTLD_LOCAL);
 
@@ -264,17 +255,13 @@ class nvvm_context
                           "toolchain");
         }
 
-#endif
-
         try
         {
             CR_NVVM_ENTRIES(CR_LOAD_NVVM_ENTRY)
         }
         catch (...)
         {
-#if !CLANGRTC_STATIC_LINK_NVVM
             ::dlclose(library_);
-#endif
 
             throw;
         }
@@ -286,12 +273,10 @@ class nvvm_context
     /** @brief Disable assignment of the backend context and its owned handle. */
     nvvm_context &operator=(nvvm_context const &) = delete;
 
-    /** @brief Close the owned libNVVM shared library when using dynamic linking. */
+    /** @brief Close the owned libNVVM shared library. */
     ~nvvm_context()
     {
-#if !CLANGRTC_STATIC_LINK_NVVM
         ::dlclose(library_);
-#endif
     }
 };
 
@@ -707,7 +692,7 @@ std::string read(std::string const &name)
  */
 std::string fingerprint()
 {
-    return std::format("{}/{}/{}", artifact_compiler_abi, clang::getClangFullVersion(), LLVM_VERSION_STRING);
+    return std::format("{}/{}/{}", artifact_version, clang::getClangFullVersion(), LLVM_VERSION_STRING);
 }
 
 /**
@@ -1810,7 +1795,7 @@ struct Emit : clang::EmitLLVMOnlyAction
  * @brief Builds driver arguments for device compilation or explicit artifact preparation.
  *
  * Selects toolkit headers, a GPU target, and the requested header profile.
- * The NVRTC profile supplies its bootstrap.
+ * Device compilation supplies an explicit bootstrap with automatic CUDA includes disabled.
  * Named-module sources include their bootstrap in the global module fragment instead.
  *
  * @param s Parsed settings and ordered caller flags.
@@ -1825,9 +1810,6 @@ std::vector<std::string> driverArgs(Settings const &s, std::string const &name, 
 {
     if (!s.device)
     {
-        auto resourceHeader = std::format("{}/include/stddef.h", s.resource);
-        CR_EXPECTS(std::filesystem::exists(resourceHeader), "Missing Clang resource headers", Failure,
-                   CLANGRTC_TOOLCHAIN_ERROR);
         std::vector<std::string> args{"clang++",
                                       "-x",
                                       s.language,
@@ -1873,10 +1855,6 @@ std::vector<std::string> driverArgs(Settings const &s, std::string const &name, 
     }
 
     CR_EXPECTS(!cuda.empty(), "Specify --cuda-path=TOOLKIT or CUDA_PATH", Failure, CLANGRTC_TOOLCHAIN_ERROR);
-    auto resourceHeader = std::format("{}/include/stddef.h", s.resource);
-    std::ifstream resource(resourceHeader);
-    CR_EXPECTS(static_cast<bool>(resource), std::format("Cannot read Clang resource header {}", resourceHeader),
-               Failure, CLANGRTC_TOOLCHAIN_ERROR);
     auto include = std::format("{}/include", cuda);
     std::error_code error;
 
@@ -1898,27 +1876,16 @@ std::vector<std::string> driverArgs(Settings const &s, std::string const &name, 
                std::format("Invalid CUDART_VERSION in {}/cuda_runtime_api.h", include), Failure,
                CLANGRTC_TOOLCHAIN_ERROR);
 
-    if (s.minimal || s.libcudacxx)
+    if (s.minimal)
     {
-        // Overlay the genuine compiler/SDK headers at their original paths. This preserves
-        // system-header handling and intercepts SDK quoted includes as well as angle includes.
-        auto overlay = [&](std::string const &name, std::string_view contents) {
-            if (!inputs.exists(name))
-            {
-                CR_EXPECTS(inputs.addFile(name, 0, llvm::MemoryBuffer::getMemBufferCopy(contents, name)),
-                           std::format("Cannot configure CUDA header {}", name));
-            }
-        };
+        // Overlay the SDK path so both quoted and angle includes observe minimal mode.
+        // The bootstrap supplies vector types without importing the runtime API.
+        auto header = std::format("{}/cuda_runtime_api.h", include);
 
-        for (auto const &[name, contents] : cuda_mode_headers())
+        if (!inputs.exists(header))
         {
-            overlay(std::format("{}/include/{}", s.resource, name), contents);
-        }
-
-        if (s.minimal)
-        {
-            overlay(std::format("{}/cuda_runtime_api.h", include),
-                    std::format("#ifndef __CUDACC_RTC_MINIMAL__\n{}\n#endif\n", version));
+            CR_EXPECTS(inputs.addFile(header, 0, llvm::MemoryBuffer::getMemBufferCopy("", header)),
+                       "Cannot configure minimal CUDA runtime header");
         }
     }
 
@@ -1929,15 +1896,13 @@ std::vector<std::string> driverArgs(Settings const &s, std::string const &name, 
                                   "-resource-dir",
                                   s.resource,
                                   "-nocudalib",
+                                  "-nocudainc",
                                   "-std=c++20",
                                   std::format("-O{}", s.optimization),
                                   "-Wno-unknown-cuda-version",
                                   std::format("-I{}", include)};
 
-    if (s.minimal || s.libcudacxx)
-    {
-        args.push_back(std::format("-DCUDA_VERSION={}", v));
-    }
+    args.push_back(std::format("-DCUDA_VERSION={}", v));
 
     if (s.minimal)
     {
@@ -1950,34 +1915,15 @@ std::vector<std::string> driverArgs(Settings const &s, std::string const &name, 
         args.insert(args.end(),
                     {"-nostdinc++", "-fno-exceptions", "-D__CLANGRTC_LIBCUDACXX__=1", "-D_CCCL_ENABLE_FREESTANDING=1",
                      "-I/__clangrtc__/include/clangrtc/libcudacxx", std::format("-idirafter{}/cccl", include)});
-        // cuda_runtime.h's convenience templates include <utility> before CUDA's address
-        // space intrinsics are ready. Keep its C API and load its C++ adapters afterwards.
-        auto runtime = read(std::format("{}/cuda_runtime.h", include));
-        llvm::StringRef condition = "defined(__cplusplus) && !defined(__CUDACC_RTC__)";
-        size_t at{};
-
-        while ((at = runtime.find(condition.str(), at)) != std::string::npos)
-        {
-            runtime.insert(at + condition.size(), " && !defined(__CLANGRTC_LIBCUDACXX__)");
-            at += condition.size() + std::string_view(" && !defined(__CLANGRTC_LIBCUDACXX__)").size();
-        }
-
-        auto name = std::format("{}/cuda_runtime.h", include);
-
-        if (!inputs.exists(name))
-        {
-            CR_EXPECTS(inputs.addFile(name, 0, llvm::MemoryBuffer::getMemBufferCopy(runtime, name)),
-                       "Cannot configure CUDA runtime header");
-        }
     }
 
     args.push_back("-I/__clangrtc__/include");
 
-    // CUDA's implicit wrapper precedes the source, but a module's global fragment must come first.
-    // Module producers include clangrtc/device.hpp explicitly after `module;` instead.
-    if (mode == "bmi" || mode == "reduced-bmi")
+    // Module producers include the bootstrap after `module;`. Other CUDA inputs
+    // use the same explicit bootstrap instead of the driver's implicit wrapper.
+    if (mode != "bmi" && mode != "reduced-bmi")
     {
-        args.push_back("-nocudainc");
+        args.insert(args.end(), {"-include", "clangrtc/device.hpp"});
     }
 
     args.insert(args.end(), s.flags.begin(), s.flags.end());
@@ -2172,7 +2118,7 @@ std::string serialize(clangrtcArtifactImpl const &a)
     os << llvm::json::Value(std::move(meta));
     auto bytes = json;
     bytes.append(body);
-    auto package = std::format("{}\n{}\n{}\n", artifact_package_magic, json.size(), hash(bytes));
+    auto package = std::format("{}\n{}\n{}\n", artifact_version, json.size(), hash(bytes));
     package.append(bytes);
     return package;
 }
@@ -2467,9 +2413,15 @@ struct Run
 
         if (!artifact)
         {
-            for (auto const &[name, data] : builtin_headers())
+            for (size_t i = 0; i < std::size(clangrtc_headers::file_ranges); ++i)
             {
-                add(*inputs, name, data, 0);
+                auto name = clangrtc_headers::file_destinations[i];
+                auto data = clangrtc_headers::get(i);
+                auto contents = llvm::StringRef(reinterpret_cast<char const *>(data.data()), data.size());
+                // rtcx_embed terminates each file. Borrow immutable linked bytes rather
+                // than copying the resource bundle into every compilation request.
+                CR_EXPECTS(inputs->addFile(name, 0, llvm::MemoryBuffer::getMemBuffer(contents, name)),
+                           std::format("Cannot configure embedded header {}", name));
             }
         }
 
@@ -2605,6 +2557,14 @@ struct Run
         }
         else
         {
+            if (!artifact)
+            {
+                auto resourceHeader = std::format("{}/include/stddef.h", settings.resource);
+                CR_EXPECTS(fs->exists(resourceHeader),
+                           std::format("Cannot read Clang resource header {}", resourceHeader), Failure,
+                           CLANGRTC_TOOLCHAIN_ERROR);
+            }
+
             inv = invocation(driverArgs(settings, sourceName, mode, *inputs), fs, diagnostics, &args);
 
             if (settings.libcudacxx && !artifact)
@@ -3362,7 +3322,7 @@ extern "C"
                                                  cr::to_view("profile:nvrtc"),
                                                  cr::to_view("profile:hosted")};
 
-        *info = {cr::to_view(cr::libraryVersion), cr::to_view(CLANG_VERSION_STRING), cr::to_view(LLVM_VERSION_STRING),
+        *info = {cr::to_view(cr::library_version), cr::to_view(CLANG_VERSION_STRING), cr::to_view(LLVM_VERSION_STRING),
                  capabilities.data(), capabilities.size()};
         return CLANGRTC_SUCCESS;
     }

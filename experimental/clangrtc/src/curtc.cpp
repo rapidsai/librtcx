@@ -30,7 +30,6 @@
 #include <fstream>
 #include <functional>
 #include <future>
-#include <llvm/ADT/StringExtras.h>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -2092,7 +2091,7 @@ compiler_output get_or_compile_lto(content_cache &cache, curtcInput const &value
 
     writer key;
     key.bytes(identity(kernel ? "kernels" : "fragment"));
-    key.text(artifact_package_magic);
+    key.text(artifact_version);
     key.text(package_identity);
     key.text(target);
     key.text(input.name);
