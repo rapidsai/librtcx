@@ -1,0 +1,35 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/**
+ * @file iterator
+ * @brief Forward the device subset of <iterator> to libcudacxx without host C++ headers.
+ */
+#pragma once
+
+#include <clangrtc/libcudacxx/config.hpp>
+#include <cuda/std/iterator>
+
+namespace std
+{
+using ::cuda::std::advance;
+using ::cuda::std::begin;
+using ::cuda::std::cbegin;
+using ::cuda::std::cend;
+using ::cuda::std::crbegin;
+using ::cuda::std::crend;
+using ::cuda::std::data;
+using ::cuda::std::distance;
+using ::cuda::std::empty;
+using ::cuda::std::end;
+using ::cuda::std::iterator_traits;
+using ::cuda::std::make_move_iterator;
+using ::cuda::std::make_reverse_iterator;
+using ::cuda::std::move_iterator;
+using ::cuda::std::next;
+using ::cuda::std::prev;
+using ::cuda::std::rbegin;
+using ::cuda::std::rend;
+using ::cuda::std::reverse_iterator;
+using ::cuda::std::size;
+using ::cuda::std::ssize;
+} // namespace std

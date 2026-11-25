@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: Apache-2.0
+@PACKAGE_INIT@
+
+set(_clangrtc_package_libdir "@PACKAGE_CMAKE_INSTALL_LIBDIR@")
+include(CMakeFindDependencyMacro)
+if(NOT @BUILD_SHARED_LIBS@)
+    # Static consumers currently resolve the upstream compiler targets themselves.
+    find_dependency(LLVM @LLVM_PACKAGE_VERSION@ EXACT CONFIG HINTS "@LLVM_DIR@")
+    find_dependency(Clang CONFIG HINTS "@Clang_DIR@")
+    if(@CLANGRTC_BUILD_CURTC@ AND @CLANGRTC_STATIC_LINK_NVJITLINK@)
+        find_dependency(Threads)
+        if(NOT TARGET clangrtc::nvPTXCompiler)
+            add_library(clangrtc::nvPTXCompiler STATIC IMPORTED)
+            set_target_properties(
+                clangrtc::nvPTXCompiler
+                PROPERTIES IMPORTED_LOCATION
+                           "${_clangrtc_package_libdir}/libnvptxcompiler_static.a")
+        endif()
+        if(NOT TARGET clangrtc::nvJitLink)
+            add_library(clangrtc::nvJitLink STATIC IMPORTED)
+            set_target_properties(
+                clangrtc::nvJitLink
+                PROPERTIES IMPORTED_LOCATION "${_clangrtc_package_libdir}/libnvJitLink_static.a"
+                           INTERFACE_LINK_LIBRARIES
+                           "clangrtc::nvPTXCompiler;Threads::Threads;${CMAKE_DL_LIBS}")
+        endif()
+    endif()
+endif()
+include("${CMAKE_CURRENT_LIST_DIR}/clangrtcTargets.cmake")
+if(NOT @BUILD_SHARED_LIBS@)
+    # Archives cannot carry a runtime search path; their installed consumers own it.
+    set(_clangrtc_backend_rpath "LINKER:-rpath,${_clangrtc_package_libdir}")
+    target_link_options(clangrtc::clangrtc INTERFACE "${_clangrtc_backend_rpath}")
+endif()
+check_required_components(clangrtc)

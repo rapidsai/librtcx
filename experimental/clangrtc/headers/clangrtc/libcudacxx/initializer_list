@@ -1,0 +1,84 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/**
+ * @file initializer_list
+ * @brief Provide the compiler-owned std::initializer_list layout required by libcudacxx.
+ *
+ * Clang constructs std::initializer_list directly; it cannot be a cuda::std alias.
+ * libcudacxx imports this definition into cuda::std when compiling with Clang.
+ */
+#pragma once
+
+#include <stddef.h>
+
+namespace std
+{
+/** @brief Borrow a compiler-provided array of constant initializer elements. */
+template <class T> class initializer_list
+{
+    /** @brief Address of the first initializer. */
+    const T *data_;
+
+    /** @brief Number of initializer elements. */
+    size_t size_;
+
+    /** @brief Construct the pointer/count representation recognized by Clang. */
+    __host__ __device__ constexpr initializer_list(const T *data, size_t size) : data_(data), size_(size)
+    {
+    }
+
+  public:
+    /** @brief Element type. */
+    using value_type = T;
+
+    /** @brief Read-only element reference. */
+    using reference = const T &;
+
+    /** @brief Read-only element reference. */
+    using const_reference = const T &;
+
+    /** @brief Element count type. */
+    using size_type = size_t;
+
+    /** @brief Read-only element iterator. */
+    using iterator = const T *;
+
+    /** @brief Read-only element iterator. */
+    using const_iterator = const T *;
+
+    /** @brief Construct an empty initializer list. */
+    __host__ __device__ constexpr initializer_list() : data_(nullptr), size_(0)
+    {
+    }
+
+    /** @brief Return the number of elements. */
+    __host__ __device__ constexpr size_t size() const
+    {
+        return size_;
+    }
+
+    /** @brief Return the first element's address. */
+    __host__ __device__ constexpr const T *begin() const
+    {
+        return data_;
+    }
+
+    /** @brief Return the end iterator without arithmetic on a null pointer. */
+    __host__ __device__ constexpr const T *end() const
+    {
+        return size_ ? data_ + size_ : data_;
+    }
+};
+
+/** @brief Return the first element of a borrowed initializer list. */
+template <class T> __host__ __device__ constexpr const T *begin(initializer_list<T> values)
+{
+    return values.begin();
+}
+
+/** @brief Return the end iterator of a borrowed initializer list. */
+template <class T> __host__ __device__ constexpr const T *end(initializer_list<T> values)
+{
+    return values.end();
+}
+} // namespace std

@@ -1,0 +1,44 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/**
+ * @file ratio
+ * @brief Forward the device subset of <ratio> to libcudacxx without host C++ headers.
+ */
+#pragma once
+
+#include <clangrtc/libcudacxx/config.hpp>
+#include <cuda/std/ratio>
+
+namespace std
+{
+using ::cuda::std::centi;
+using ::cuda::std::deca;
+using ::cuda::std::deci;
+using ::cuda::std::exa;
+using ::cuda::std::giga;
+using ::cuda::std::hecto;
+using ::cuda::std::kilo;
+using ::cuda::std::mega;
+using ::cuda::std::micro;
+using ::cuda::std::milli;
+using ::cuda::std::nano;
+using ::cuda::std::peta;
+using ::cuda::std::ratio;
+using ::cuda::std::ratio_add;
+using ::cuda::std::ratio_divide;
+using ::cuda::std::ratio_equal;
+using ::cuda::std::ratio_equal_v;
+using ::cuda::std::ratio_greater;
+using ::cuda::std::ratio_greater_equal;
+using ::cuda::std::ratio_greater_equal_v;
+using ::cuda::std::ratio_greater_v;
+using ::cuda::std::ratio_less;
+using ::cuda::std::ratio_less_equal;
+using ::cuda::std::ratio_less_equal_v;
+using ::cuda::std::ratio_less_v;
+using ::cuda::std::ratio_multiply;
+using ::cuda::std::ratio_not_equal;
+using ::cuda::std::ratio_not_equal_v;
+using ::cuda::std::ratio_subtract;
+using ::cuda::std::tera;
+} // namespace std

@@ -1,0 +1,8 @@
+BasedOnStyle: Microsoft
+SeparateDefinitionBlocks: Always
+InsertBraces: true
+IncludeBlocks: Regroup
+RawStringFormats:
+  - Language: Cpp
+    Delimiters: [CUDA]
+    BasedOnStyle: Microsoft

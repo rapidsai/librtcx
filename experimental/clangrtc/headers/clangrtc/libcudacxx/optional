@@ -1,0 +1,20 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/**
+ * @file optional
+ * @brief Forward the device subset of <optional> to libcudacxx without host C++ headers.
+ */
+#pragma once
+
+#include <clangrtc/libcudacxx/config.hpp>
+#include <cuda/std/optional>
+
+namespace std
+{
+using ::cuda::std::in_place;
+using ::cuda::std::in_place_t;
+using ::cuda::std::make_optional;
+using ::cuda::std::nullopt;
+using ::cuda::std::nullopt_t;
+using ::cuda::std::optional;
+} // namespace std

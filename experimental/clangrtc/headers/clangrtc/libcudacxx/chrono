@@ -1,0 +1,15 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/**
+ * @file chrono
+ * @brief Forward the device subset of <chrono> to libcudacxx without host C++ headers.
+ */
+#pragma once
+
+#include <clangrtc/libcudacxx/config.hpp>
+#include <cuda/std/chrono>
+
+namespace std
+{
+namespace chrono = ::cuda::std::chrono;
+}

@@ -1,0 +1,15 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/**
+ * @file limits
+ * @brief Forward the device subset of <limits> to libcudacxx without host C++ headers.
+ */
+#pragma once
+
+#include <clangrtc/libcudacxx/config.hpp>
+#include <cuda/std/limits>
+
+namespace std
+{
+using ::cuda::std::numeric_limits;
+}

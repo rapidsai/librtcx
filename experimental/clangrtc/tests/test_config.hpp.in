@@ -1,0 +1,27 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/**
+ * @file test_config.hpp.in
+ * @brief Supply the configured CUDA toolkit path to test translation units.
+ *
+ * CMake substitutes the build-selected toolkit location into the generated test_config.hpp header.
+ */
+
+#pragma once
+#include <string_view>
+
+#cmakedefine01 CLANGRTC_TEST_CCCL_FREESTANDING
+
+namespace test
+{
+inline constexpr std::string_view CudaPath = "@CLANGRTC_CUDA_PATH@";
+
+/** @brief CCCL include root used by device standard-library tests. */
+inline constexpr std::string_view CcclPath = "@CLANGRTC_TEST_CCCL_INCLUDE_DIR@";
+
+/** @brief Whether the selected headers support explicit freestanding compilation. */
+inline constexpr bool CcclFreestanding = CLANGRTC_TEST_CCCL_FREESTANDING;
+
+/** @brief Actual CUDA-visible device used by the GPU integration suites. */
+inline constexpr int GpuOrdinal = 0;
+} // namespace test

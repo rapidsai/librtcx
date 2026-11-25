@@ -1,0 +1,35 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/**
+ * @file algorithm
+ * @brief Forward the device subset of <algorithm> to libcudacxx without host C++ headers.
+ */
+#pragma once
+
+#include <clangrtc/libcudacxx/config.hpp>
+#include <cuda/std/algorithm>
+
+namespace std
+{
+using ::cuda::std::binary_search;
+using ::cuda::std::clamp;
+using ::cuda::std::copy;
+using ::cuda::std::copy_if;
+using ::cuda::std::copy_n;
+using ::cuda::std::equal;
+using ::cuda::std::fill;
+using ::cuda::std::fill_n;
+using ::cuda::std::find;
+using ::cuda::std::find_if;
+using ::cuda::std::for_each;
+using ::cuda::std::iter_swap;
+using ::cuda::std::lexicographical_compare;
+using ::cuda::std::lower_bound;
+using ::cuda::std::max;
+using ::cuda::std::min;
+using ::cuda::std::minmax;
+using ::cuda::std::move;
+using ::cuda::std::swap;
+using ::cuda::std::transform;
+using ::cuda::std::upper_bound;
+} // namespace std

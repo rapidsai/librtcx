@@ -1,0 +1,49 @@
+{
+  "source": "https://developer.download.nvidia.com/compute/cuda/redist/redistrib_13.5.0.json",
+  "components": {
+    "libnvvm": {
+      "version": "13.5.37",
+      "linux-x86_64": {
+        "relative_path": "libnvvm/linux-x86_64/libnvvm-linux-x86_64-13.5.37-archive.tar.xz",
+        "sha256": "8dd4866e387f0ce2259e8dcc91bebdbb59f84c6d4505b3bba46ae91b9a11dd16"
+      },
+      "linux-sbsa": {
+        "relative_path": "libnvvm/linux-sbsa/libnvvm-linux-sbsa-13.5.37-archive.tar.xz",
+        "sha256": "6c79308860d5eb47c6dd3693652a4d7cd430050438d31d5f036aa0b19583f2ea"
+      }
+    },
+    "libnvjitlink": {
+      "version": "13.5.37",
+      "linux-x86_64": {
+        "relative_path": "libnvjitlink/linux-x86_64/libnvjitlink-linux-x86_64-13.5.37-archive.tar.xz",
+        "sha256": "0b864b178368f295f01d80a4744013833fe0a6beeb67e5390dcda1070dd91cdf"
+      },
+      "linux-sbsa": {
+        "relative_path": "libnvjitlink/linux-sbsa/libnvjitlink-linux-sbsa-13.5.37-archive.tar.xz",
+        "sha256": "059a68dec254768b223b1a0d834eac085109ef5e564fb221d2a01d83933947a8"
+      }
+    },
+    "libnvptxcompiler": {
+      "version": "13.5.37",
+      "linux-x86_64": {
+        "relative_path": "libnvptxcompiler/linux-x86_64/libnvptxcompiler-linux-x86_64-13.5.37-archive.tar.xz",
+        "sha256": "e92761c2c83fdbe1c582aab568e684371c3023e88b7b4c6fb3d92e3feb160b67"
+      },
+      "linux-sbsa": {
+        "relative_path": "libnvptxcompiler/linux-sbsa/libnvptxcompiler-linux-sbsa-13.5.37-archive.tar.xz",
+        "sha256": "8f5503e8a7ced0e676ce327eb83f5a1650b59f54d66e6cf704d2d4ee9583eb2d"
+      }
+    },
+    "cuda_cudart": {
+      "version": "13.5.37",
+      "linux-x86_64": {
+        "relative_path": "cuda_cudart/linux-x86_64/cuda_cudart-linux-x86_64-13.5.37-archive.tar.xz",
+        "sha256": "26ca1b8963ce1b73e0e77113c711730545cacaaee7233c0526477d96d4c621fe"
+      },
+      "linux-sbsa": {
+        "relative_path": "cuda_cudart/linux-sbsa/cuda_cudart-linux-sbsa-13.5.37-archive.tar.xz",
+        "sha256": "9da80d6aa87f5bc46971c1343024f30a850aca9aac03da95219880aaf854154f"
+      }
+    }
+  }
+}

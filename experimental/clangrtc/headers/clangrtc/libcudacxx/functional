@@ -1,0 +1,39 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/**
+ * @file functional
+ * @brief Forward the device subset of <functional> to libcudacxx without host C++ headers.
+ */
+#pragma once
+
+#include <clangrtc/libcudacxx/config.hpp>
+#include <cuda/std/functional>
+
+namespace std
+{
+using ::cuda::std::bit_and;
+using ::cuda::std::bit_not;
+using ::cuda::std::bit_or;
+using ::cuda::std::bit_xor;
+using ::cuda::std::cref;
+using ::cuda::std::divides;
+using ::cuda::std::equal_to;
+using ::cuda::std::greater;
+using ::cuda::std::greater_equal;
+using ::cuda::std::hash;
+using ::cuda::std::identity;
+using ::cuda::std::invoke;
+using ::cuda::std::less;
+using ::cuda::std::less_equal;
+using ::cuda::std::logical_and;
+using ::cuda::std::logical_not;
+using ::cuda::std::logical_or;
+using ::cuda::std::minus;
+using ::cuda::std::modulus;
+using ::cuda::std::multiplies;
+using ::cuda::std::negate;
+using ::cuda::std::not_equal_to;
+using ::cuda::std::plus;
+using ::cuda::std::ref;
+using ::cuda::std::reference_wrapper;
+} // namespace std

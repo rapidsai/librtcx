@@ -1,0 +1,86 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/**
+ * @file cmath
+ * @brief Forward the device subset of <cmath> to libcudacxx without host C++ headers.
+ */
+#pragma once
+
+#include <clangrtc/libcudacxx/config.hpp>
+#include <cuda/std/cmath>
+
+namespace std
+{
+using ::cuda::std::abs;
+using ::cuda::std::acos;
+using ::cuda::std::acosh;
+using ::cuda::std::asin;
+using ::cuda::std::asinh;
+using ::cuda::std::atan;
+using ::cuda::std::atan2;
+using ::cuda::std::atanh;
+using ::cuda::std::cbrt;
+using ::cuda::std::ceil;
+using ::cuda::std::copysign;
+using ::cuda::std::cos;
+using ::cuda::std::cosh;
+using ::cuda::std::double_t;
+using ::cuda::std::erf;
+using ::cuda::std::erfc;
+using ::cuda::std::exp;
+using ::cuda::std::exp2;
+using ::cuda::std::expm1;
+using ::cuda::std::fabs;
+using ::cuda::std::fdim;
+using ::cuda::std::float_t;
+using ::cuda::std::floor;
+using ::cuda::std::fma;
+using ::cuda::std::fmax;
+using ::cuda::std::fmin;
+using ::cuda::std::fmod;
+using ::cuda::std::fpclassify;
+using ::cuda::std::frexp;
+using ::cuda::std::hypot;
+using ::cuda::std::ilogb;
+using ::cuda::std::isfinite;
+using ::cuda::std::isgreater;
+using ::cuda::std::isgreaterequal;
+using ::cuda::std::isinf;
+using ::cuda::std::isless;
+using ::cuda::std::islessequal;
+using ::cuda::std::islessgreater;
+using ::cuda::std::isnan;
+using ::cuda::std::isnormal;
+using ::cuda::std::isunordered;
+using ::cuda::std::ldexp;
+using ::cuda::std::lgamma;
+using ::cuda::std::llrint;
+using ::cuda::std::llround;
+using ::cuda::std::log;
+using ::cuda::std::log10;
+using ::cuda::std::log1p;
+using ::cuda::std::log2;
+using ::cuda::std::logb;
+using ::cuda::std::lrint;
+using ::cuda::std::lround;
+using ::cuda::std::modf;
+using ::cuda::std::nan;
+using ::cuda::std::nanf;
+using ::cuda::std::nearbyint;
+using ::cuda::std::nextafter;
+using ::cuda::std::pow;
+using ::cuda::std::remainder;
+using ::cuda::std::remquo;
+using ::cuda::std::rint;
+using ::cuda::std::round;
+using ::cuda::std::scalbln;
+using ::cuda::std::scalbn;
+using ::cuda::std::signbit;
+using ::cuda::std::sin;
+using ::cuda::std::sinh;
+using ::cuda::std::sqrt;
+using ::cuda::std::tan;
+using ::cuda::std::tanh;
+using ::cuda::std::tgamma;
+using ::cuda::std::trunc;
+} // namespace std
