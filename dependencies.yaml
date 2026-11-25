@@ -37,7 +37,7 @@ dependencies:
     common:
       - output_types: conda
         packages:
-          - cmake>=4.0,<4.5
+          - cmake>=4.3,<4.5
           - ninja
           - c-compiler
           - cxx-compiler
@@ -59,7 +59,7 @@ dependencies:
     common:
       - output_types: conda
         packages:
-          - cmake>=4.0,<4.5
+          - cmake>=4.3,<4.5
           - pre-commit
           # pre-commit requires identify minimum version 1.0, but clang-format
           # requires textproto support and that was added in 2.5.20, so we need
@@ -70,7 +70,7 @@ dependencies:
     common:
       - output_types: conda
         packages:
-          - cmake>=4.0,<4.5
+          - cmake>=4.3,<4.5
           - librtcx-tests
   cuda:
     common:
