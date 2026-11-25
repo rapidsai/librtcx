@@ -423,4 +423,95 @@ TEST(CurtcGpu, RunsToolkitDeviceHelpersWithNvrtcProfile)
         }
     }
 }
+
+/**
+ * @brief Link and execute nonconstant libdevice math and bit operations across all device header modes.
+ *
+ * Both independently compiled inputs use libdevice, exercising shared device dependencies during LTO linking.
+ */
+TEST(CurtcGpu, LibdeviceFunctionsExecuteAcrossHeaderModes)
+{
+    curtcConfiguration configuration{};
+    ASSERT_EQ(curtcDefaultConfiguration(&configuration), CLANGRTC_SUCCESS);
+    configuration.diskCache = false;
+    curtcCache rawCache{};
+    ASSERT_EQ(curtcCreateCache(&configuration, &rawCache), CLANGRTC_SUCCESS);
+    std::unique_ptr<curtcCacheImpl, decltype(&curtcDestroyCache)> cache(rawCache, curtcDestroyCache);
+    auto source = std::string_view(R"CUDA(
+#include <cmath>
+
+        extern "C" __device__ int math_fragment(unsigned);
+
+        extern "C" __global__ void kernel(int *out)
+        {
+            double offset = double(threadIdx.x);
+            *out = int(std::sqrt(25.0 + offset) + 0.5) + int(std::log2(8.0 + offset) + 0.5) + int(std::sin(offset)) +
+                   __popc(7u + threadIdx.x) + math_fragment(threadIdx.x);
+        }
+    )CUDA");
+    auto fragment = std::string_view(R"CUDA(
+#include <cmath>
+
+        extern "C" __device__ int math_fragment(unsigned offset)
+        {
+            return int(std::sqrt(25.0 + double(offset)) + 0.5) + __popc(7u + offset);
+        }
+    )CUDA");
+    auto target = test::gpu_target();
+
+    for (bool libcudacxx : {false, true})
+    {
+        if (libcudacxx && !test::CcclFreestanding)
+        {
+            continue;
+        }
+
+        for (bool minimal : {false, true})
+        {
+            SCOPED_TRACE(std::format("libcudacxx={}, minimal={}", libcudacxx, minimal));
+            test::Options options{std::format("--cuda-path={}", test::CudaPath)};
+
+            if (minimal)
+            {
+                options.push_back("--minimal");
+            }
+
+            if (libcudacxx)
+            {
+                options.push_back("--stdlib=libcudacxx");
+                options.push_back(std::format("-I{}", test::CcclPath));
+            }
+
+            auto flags = test::to_views(options);
+            curtcKernelSelection selection{to_view("&kernel"), {}};
+            curtcInput input{};
+            input.type = CURTC_INPUT_TYPE_CUDA;
+            input.source.source = {to_view("/__gpu__/libdevice.cu"), to_view(source)};
+            input.options = flags.data();
+            input.optionCount = flags.size();
+            input.entries = &selection;
+            input.entryCount = 1;
+            curtcInput udf{};
+            udf.type = CURTC_INPUT_TYPE_CUDA;
+            udf.source.source = {to_view("/__gpu__/libdevice-fragment.cu"), to_view(fragment)};
+            udf.options = flags.data();
+            udf.optionCount = flags.size();
+            curtcInput inputs[]{input, udf};
+            curtcRequest request{};
+            request.inputs = inputs;
+            request.inputCount = std::size(inputs);
+            request.target = to_view(target);
+            std::string log;
+            auto diagnostic = [](clangrtcDiagnostic const *message, void *context) {
+                static_cast<std::string *>(context)->append(message->message.data, message->message.size);
+            };
+            curtcLibrary rawLibrary{};
+            ASSERT_EQ(curtcGet(cache.get(), &request, diagnostic, &log, &rawLibrary, nullptr), CLANGRTC_SUCCESS) << log;
+            std::unique_ptr<curtcLibraryImpl, decltype(&curtcReleaseLibrary)> library(rawLibrary, curtcReleaseLibrary);
+            CUkernel kernel{};
+            ASSERT_EQ(curtcGetKernel(library.get(), to_view("kernel"), &kernel), CLANGRTC_SUCCESS);
+            test::launch(kernel, 19);
+        }
+    }
+}
 } // namespace

@@ -68,8 +68,11 @@ The build always fetches the exact compiler packages listed in
 [cuda-compiler-libraries.json](cmake/cuda-compiler-libraries.json) for Linux
 x86_64 or AArch64, independently of the application's CUDA runtime. Compiler
 libraries are selected for the target CPU architecture; toolkit installations
-and backend-path overrides do not select libNVVM or nvJitLink. CUDA source compilation still needs compatible CUDA headers
-and libdevice; GPU tests use the toolkit's CUDA runtime.
+and backend-path overrides do not select libNVVM or nvJitLink. CUDA source compilation
+still needs compatible CUDA headers; GPU tests use the toolkit's CUDA runtime.
+The matching libdevice bitcode is embedded uncompressed from the pinned libNVVM
+package. LTO and PTX generation lazily link the referenced device definitions,
+without requiring a separate libdevice installation at runtime.
 
 Downloads live in `CLANGRTC_CUDA_COMPILER_CACHE` and can be reused offline.
 Fetched driver headers are private to curtc; their accompanying cudart libraries
@@ -122,8 +125,18 @@ clangrtc inspect prefix.artifact
 ```
 
 Preparation supports `cuda`, `preprocessed-cuda`, `pch`, `bmi`, and `reduced-bmi`.
-Host C++ supports PCH and both BMI formats; host C supports PCH. Packages own
-their dependencies and optional prepared definitions. Load an artifact once
+Host C++ supports PCH and both BMI formats; host C supports PCH. PCH/BMI packages
+contain serialized compiler state, required source buffers, and optional prepared
+definitions. They omit the separate header archive by default. Clang reads retained
+buffers from the AST for macro spellings and diagnostics; importing declarations
+does not need the original files. BMI packages also contain the bootstrap PCH
+needed to parse an importing consumer.
+
+Pass `--artifact-sources` during preparation to retain an additional source/header
+archive when consumers need to issue new `#include` directives for those files.
+Without it, provide any newly included headers through the compilation request.
+Source and preprocessed-source artifacts always retain their dependencies because
+they are parsed again during consumption. Load an artifact once
 with `clangrtcLoadArtifact`, keep it alive during borrowing requests, and release
 it with `clangrtcDestroyArtifact`. Each compilation creates a fresh frontend;
 immutable artifacts can be shared across concurrent requests.
@@ -149,6 +162,8 @@ not define `__CUDACC_RTC__`. BMI producers include `<clangrtc/device.hpp>` after
 `cuda::std` without host C++ headers. Pass a CCCL include root supporting
 `_CCCL_ENABLE_FREESTANDING` with `-I`. These modes are independent and retained
 in prepared artifacts; real CUDA math, atomics, and intrinsics remain available.
+Caller `-I` directories precede the toolkit include directory, so a supplied
+CCCL version consistently overrides copies bundled with older toolkits.
 
 CUDA requests use `-nocudainc` and explicitly load the embedded
 [device.hpp](headers/clangrtc/device.hpp) bootstrap. The default environment reuses

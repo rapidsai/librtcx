@@ -50,6 +50,28 @@ extern "C" int answer() { return VALUE + EXTRA; }
     EXPECT_NE(result.output().find("ret i32 42"), std::string::npos);
 }
 
+/** @brief A caller include directory overrides an SDK header while still forwarding to the real toolkit. */
+TEST_F(CompilationTest, CallerIncludeDirectoriesPrecedeToolkitHeaders)
+{
+    auto input = request(R"CUDA(
+#include <cuda_runtime_api.h>
+#ifndef SELECTED_CALLER_HEADER
+#error The toolkit header took precedence over the caller include directory
+#endif
+                             extern "C" __global__ void kernel()
+                             {
+                             }
+                         )CUDA",
+                         {});
+    clangrtcFile header{to_view("/__clangrtc__/caller/cuda_runtime_api.h"),
+                        to_view("#define SELECTED_CALLER_HEADER 1\n#include_next <cuda_runtime_api.h>\n")};
+    input.headers = &header;
+    input.headerCount = 1;
+    options.push_back("-I/__clangrtc__/caller");
+    auto result = compile(input, options);
+    ASSERT_EQ(result.status, CLANGRTC_SUCCESS) << result.log();
+}
+
 /**
  * @brief Reject forwarded arguments that override the workflow or omit required values.
  *

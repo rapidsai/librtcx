@@ -14,6 +14,8 @@
 #if !defined(__CUDACC_RTC_MINIMAL__) && !defined(__CLANGRTC_LIBCUDACXX__)
 #include <__clang_cuda_runtime_wrapper.h>
 #else
+
+// --minimal or --stdlib=libcudacxx
 #define __CLANG_CUDA_RUNTIME_WRAPPER_H__
 
 // Fundamental types must precede CUDA and C++ library declarations.
@@ -21,35 +23,22 @@
 #include <stdint.h>
 
 #ifdef __CUDACC_RTC_MINIMAL__
+
 /** @brief Driver integer type required by Clang intrinsics when cuda.h is omitted. */
 using cuuint32_t = __UINT32_TYPE__;
+
 #endif
 
-#if defined(__CLANGRTC_LIBCUDACXX__)
-#define __CUDACC__ 1
-#pragma push_macro("__CUDA_INCLUDE_COMPILER_INTERNAL_HEADERS__")
 #define __CUDA_INCLUDE_COMPILER_INTERNAL_HEADERS__
-#include "crt/host_defines.h"
-#pragma pop_macro("__CUDA_INCLUDE_COMPILER_INTERNAL_HEADERS__")
-#endif
-
-#ifndef __CLANGRTC_LIBCUDACXX__
-#include <__clang_cuda_math_forward_declares.h>
-#endif
-
-#define __CUDACC__ 1
 
 #ifdef __CLANGRTC_LIBCUDACXX__
+
+#define __CUDACC__ 1
+#include "crt/host_defines.h"
 #include <limits.h>
 #include <math.h>
-#else
-#include <climits>
-#include <cmath>
-#include <cstdlib>
-#endif
 #include <stdlib.h>
-#include <string.h>
-#ifdef __CLANGRTC_LIBCUDACXX__
+
 // C macros must not expand inside cuda::std math declarations.
 #undef fpclassify
 #undef isfinite
@@ -63,7 +52,19 @@ using cuuint32_t = __UINT32_TYPE__;
 #undef islessequal
 #undef islessgreater
 #undef isunordered
+
+#else
+
+#include <__clang_cuda_math_forward_declares.h>
+#define __CUDACC__ 1
+#include <climits>
+#include <cmath>
+#include <cstdlib>
+
 #endif
+
+#include <string.h>
+
 #undef __CUDACC__
 
 #if defined(__GNUC__) && defined(__GLIBC_PREREQ)
@@ -76,9 +77,8 @@ using cuuint32_t = __UINT32_TYPE__;
 #define _NV_RSQRT_SPECIFIER
 #endif
 
-// SDK headers temporarily change these definitions while importing device code.
+// SDK definitions temporarily suppress the platform's exception specification.
 #pragma push_macro("__THROW")
-#pragma push_macro("__CUDA_ARCH__")
 
 #ifndef __CUDACC_RTC_MINIMAL__
 #include "cuda.h"
@@ -88,9 +88,6 @@ using cuuint32_t = __UINT32_TYPE__;
 #elif CUDA_VERSION < 9000
 #error "clangrtc device header modes require CUDA 9 or newer"
 #endif
-
-#pragma push_macro("__CUDA_INCLUDE_COMPILER_INTERNAL_HEADERS__")
-#define __CUDA_INCLUDE_COMPILER_INTERNAL_HEADERS__
 
 #include "__clang_cuda_builtin_vars.h"
 
@@ -112,20 +109,18 @@ using cuuint32_t = __UINT32_TYPE__;
 #include "driver_types.h"
 #include "host_config.h"
 
-#pragma push_macro("nv_weak")
 #define nv_weak weak
 #undef __CUDABE__
 #undef __CUDA_LIBDEVICE__
 #define __CUDACC__ 1
 #ifdef __CUDACC_RTC_MINIMAL__
 #include "builtin_types.h"
-#include "vector_functions.h"
 #else
 #include "cuda_runtime_api.h"
-#include "vector_functions.h"
 #endif
+#include "vector_functions.h"
 
-#pragma pop_macro("nv_weak")
+#undef nv_weak
 #undef __CUDACC__
 #define __CUDABE__
 
@@ -150,22 +145,22 @@ using cuuint32_t = __UINT32_TYPE__;
 #undef __cxa_pure_virtual
 
 // Reuse the compiler's complete implementations rather than maintaining a catalog.
+// Keep declarations before the wrappers that call them.
+// clang-format off
 #include <__clang_cuda_libdevice_declares.h>
-
 #include <__clang_cuda_device_functions.h>
 #include <__clang_cuda_math.h>
+// clang-format on
 
 #undef __THROW
 #define __THROW
 
-#if defined(CU_DEVICE_INVALID)
-#if !defined(__USE_FAST_MATH__)
+#if defined(CU_DEVICE_INVALID) && !defined(__USE_FAST_MATH__)
 #define __USE_FAST_MATH__ 0
 #endif
 
-#if !defined(__CUDA_PREC_DIV)
+#if defined(CU_DEVICE_INVALID) && !defined(__CUDA_PREC_DIV)
 #define __CUDA_PREC_DIV 0
-#endif
 #endif
 
 #pragma push_macro("__host__")
@@ -191,54 +186,48 @@ using cuuint32_t = __UINT32_TYPE__;
 #undef __CUDABE__
 #define __CUDACC__ 1
 #undef __DEVICE_FUNCTIONS_HPP__
-#include "device_atomic_functions.hpp"
-#include "crt/device_functions.hpp"
 #include "crt/device_double_functions.hpp"
+#include "crt/device_functions.hpp"
+#include "device_atomic_functions.hpp"
 #include "sm_20_atomic_functions.hpp"
 // SDK address-space helpers use volatile assembly; retain Clang's pure builtins.
-#pragma push_macro("__isGlobal")
-#pragma push_macro("__isShared")
-#pragma push_macro("__isConstant")
-#pragma push_macro("__isLocal")
 #define __isGlobal __ignored_cuda___isGlobal
 #define __isShared __ignored_cuda___isShared
 #define __isConstant __ignored_cuda___isConstant
 #define __isLocal __ignored_cuda___isLocal
 #include "sm_20_intrinsics.hpp"
-#pragma pop_macro("__isGlobal")
-#pragma pop_macro("__isShared")
-#pragma pop_macro("__isConstant")
-#pragma pop_macro("__isLocal")
-#pragma push_macro("__DEVICE__")
-#define __DEVICE__ static __device__ __forceinline__ __attribute__((const))
+#undef __isGlobal
+#undef __isShared
+#undef __isConstant
+#undef __isLocal
 
 /** @brief Test whether a pointer belongs to global device memory. */
-__DEVICE__ unsigned int __isGlobal(const void *p)
+static __device__ __forceinline__ __attribute__((const)) unsigned int __isGlobal(const void *p)
 {
     return __nvvm_isspacep_global(p);
 }
 
 /** @brief Test whether a pointer belongs to shared device memory. */
-__DEVICE__ unsigned int __isShared(const void *p)
+static __device__ __forceinline__ __attribute__((const)) unsigned int __isShared(const void *p)
 {
     return __nvvm_isspacep_shared(p);
 }
 
 /** @brief Test whether a pointer belongs to constant device memory. */
-__DEVICE__ unsigned int __isConstant(const void *p)
+static __device__ __forceinline__ __attribute__((const)) unsigned int __isConstant(const void *p)
 {
     return __nvvm_isspacep_const(p);
 }
 
 /** @brief Test whether a pointer belongs to local device memory. */
-__DEVICE__ unsigned int __isLocal(const void *p)
+static __device__ __forceinline__ __attribute__((const)) unsigned int __isLocal(const void *p)
 {
     return __nvvm_isspacep_local(p);
 }
 
-#pragma pop_macro("__DEVICE__")
 #include "sm_32_atomic_functions.hpp"
 
+// Restore the compiler's actual target after exposing the SDK's atomic overloads.
 #pragma push_macro("__CUDA_ARCH__")
 #undef __CUDA_ARCH__
 #include "sm_60_atomic_functions.hpp"
@@ -248,10 +237,12 @@ __DEVICE__ unsigned int __isLocal(const void *p)
 #undef __MATH_FUNCTIONS_HPP__
 
 // Reload device overloads without colliding with host standard-library signbit.
-#pragma push_macro("signbit")
+#undef signbit
+#define signbit __ignored_cuda_signbit
+
+// Preserve compiler and standard-library versions for headers included afterward.
 #pragma push_macro("__GNUC__")
 #undef __GNUC__
-#define signbit __ignored_cuda_signbit
 
 #pragma push_macro("_GLIBCXX_MATH_H")
 #pragma push_macro("_LIBCPP_VERSION")
@@ -264,12 +255,12 @@ __DEVICE__ unsigned int __isLocal(const void *p)
 #pragma pop_macro("_GLIBCXX_MATH_H")
 #pragma pop_macro("_LIBCPP_VERSION")
 #pragma pop_macro("__GNUC__")
-#pragma pop_macro("signbit")
+#undef signbit
 
 #pragma pop_macro("__host__")
 
 #ifndef __CUDACC_RTC_MINIMAL__
-#if __cplusplus >= 201103L && CUDA_VERSION >= 9000
+#if __cplusplus >= 201103L
 #include <__clang_cuda_texture_intrinsics.h>
 #else
 /** @brief Delay the texture-language diagnostic until an unsupported call is instantiated. */
@@ -285,7 +276,7 @@ __host__ __device__ void __nv_tex_surf_handler(const char *name, T *ptr, cudaTex
 {
     _Static_assert(__nv_tex_needs_cxx11<T>::value, "Texture support requires C++11");
 }
-#endif // __cplusplus >= 201103L && CUDA_VERSION >= 9000
+#endif // __cplusplus >= 201103L
 #include "surface_indirect_functions.h"
 #if CUDA_VERSION < 13000
 #include "texture_fetch_functions.h"
@@ -294,7 +285,6 @@ __host__ __device__ void __nv_tex_surf_handler(const char *name, T *ptr, cudaTex
 
 #endif // !__CUDACC_RTC_MINIMAL__
 
-#pragma pop_macro("__CUDA_ARCH__")
 #pragma pop_macro("__THROW")
 
 #undef __CUDABE__
@@ -366,9 +356,8 @@ template <class T> __host__ __device__ inline bool isfinite(T value) noexcept
         return __builtin_isfinite(value);
     }
 }
-#endif
+#else
 
-#ifndef __CLANGRTC_LIBCUDACXX__
 namespace std
 {
 /** @brief Forward std::free to device heap deallocation. */
@@ -384,7 +373,7 @@ __device__ static inline void *malloc(size_t __size)
 }
 } // namespace std
 
-#endif // !__CLANGRTC_LIBCUDACXX__
+#endif // __CLANGRTC_LIBCUDACXX__
 
 /** @brief Convert the builtin threadIdx value to CUDA dim3. */
 __device__ inline __cuda_builtin_threadIdx_t::operator dim3() const
@@ -437,21 +426,22 @@ __device__ inline __cuda_builtin_gridDim_t::operator uint3() const
 #ifndef __CLANGRTC_LIBCUDACXX__
 #include <__clang_cuda_cmath.h>
 #endif
-#include <__clang_cuda_intrinsics.h>
 #include <__clang_cuda_complex_builtins.h>
+#include <__clang_cuda_intrinsics.h>
 
-#pragma pop_macro("__CUDA_INCLUDE_COMPILER_INTERNAL_HEADERS__")
-
-#if CUDA_VERSION >= 9020 && !defined(__CUDACC_RTC_MINIMAL__)
-/** @brief Declare CUDA's launch-configuration entry point for nonminimal device compilation. */
-extern "C" unsigned __cudaPushCallConfiguration(dim3 gridDim, dim3 blockDim, size_t sharedMem = 0, void *stream = 0);
-#endif
+#undef __CUDA_INCLUDE_COMPILER_INTERNAL_HEADERS__
 
 #define _CG_CLUSTER_INTRINSICS_AVAILABLE 1
 
 #ifndef __CUDACC_RTC_MINIMAL__
-// C++ adapters may include CCCL, which needs the address-space intrinsics above.
-#include "cuda_runtime.h"
+
+#if CUDA_VERSION >= 9020
+/** @brief Declare CUDA's launch-configuration entry point for nonminimal device compilation. */
+extern "C" unsigned __cudaPushCallConfiguration(dim3 gridDim, dim3 blockDim, size_t sharedMem = 0, void *stream = 0);
 #endif
 
-#endif
+// C++ adapters may include CCCL, which needs the address-space intrinsics above.
+#include "cuda_runtime.h"
+#endif // !__CUDACC_RTC_MINIMAL__
+
+#endif // Custom device header modes.

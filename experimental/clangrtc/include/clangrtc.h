@@ -466,7 +466,7 @@ extern "C"
         clangrtcString contentHash;
 
         /**
-         * @brief Packaged dependency paths.
+         * @brief Separately archived source/header paths; excludes buffers embedded in PCH/BMI state.
          */
         const clangrtcString *dependencies;
 
@@ -541,7 +541,11 @@ extern "C"
      * --artifact=reduced-bmi (the default), --artifact=cuda, or
      * --artifact=preprocessed-cuda. BMI preparation requires a named module in
      * the source. The result's output is the complete serialized package,
-     * including dependencies, compiler identity, and semantic options.
+     * including compiler identity, semantic options, and any prepared definitions.
+     * By default, PCH/BMI state embeds required source buffers and omits a separate
+     * header archive. Use --artifact-sources to keep that archive instead when
+     * consumers need new includes of prepared headers. Source artifacts always
+     * archive their dependencies.
      *
      * @param request Source, virtual headers, and optional entry expressions. Its
      * artifact must be NULL. Resolved expression slots are returned in the result

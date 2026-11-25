@@ -139,6 +139,7 @@
     entry(nvvmCreateProgram)                  \
     entry(nvvmDestroyProgram)                 \
     entry(nvvmAddModuleToProgram)             \
+    entry(nvvmLazyAddModuleToProgram)         \
     entry(nvvmCompileProgram)                 \
     entry(nvvmGetCompiledResultSize)          \
     entry(nvvmGetCompiledResult)              \
@@ -213,6 +214,9 @@ class nvvm_context
 
     /** @brief Resolved nvvmAddModuleToProgram entry point. */
     CR_NVVM_ENTRY(nvvmAddModuleToProgram)
+
+    /** @brief Resolved nvvmLazyAddModuleToProgram entry point. */
+    CR_NVVM_ENTRY(nvvmLazyAddModuleToProgram)
 
     /** @brief Resolved nvvmCompileProgram entry point. */
     CR_NVVM_ENTRY(nvvmCompileProgram)
@@ -755,6 +759,9 @@ struct Settings
      */
     std::string artifact = "reduced-bmi";
 
+    /** @brief Keep a separate source archive for new includes when consuming serialized compiler state. */
+    bool artifactSources = false;
+
     /**
      * @brief CUDA toolkit root, with environment fallback when empty.
      */
@@ -946,6 +953,10 @@ Settings parse(std::vector<std::string> const &opts)
         else if (x.starts_with("--artifact="))
         {
             s.artifact = value("--artifact=");
+        }
+        else if (x == "--artifact-sources")
+        {
+            s.artifactSources = true;
         }
         else if (x.starts_with("--cuda-path="))
         {
@@ -1899,8 +1910,7 @@ std::vector<std::string> driverArgs(Settings const &s, std::string const &name, 
                                   "-nocudainc",
                                   "-std=c++20",
                                   std::format("-O{}", s.optimization),
-                                  "-Wno-unknown-cuda-version",
-                                  std::format("-I{}", include)};
+                                  "-Wno-unknown-cuda-version"};
 
     args.push_back(std::format("-DCUDA_VERSION={}", v));
 
@@ -1927,6 +1937,9 @@ std::vector<std::string> driverArgs(Settings const &s, std::string const &name, 
     }
 
     args.insert(args.end(), s.flags.begin(), s.flags.end());
+
+    // Caller-selected CCCL must precede copies bundled at the SDK include root.
+    args.push_back(std::format("-I{}", include));
 
     if (mode == "pch")
     {
@@ -2265,7 +2278,7 @@ std::unique_ptr<clangrtcArtifactImpl> deserialize(std::span<char const> bytes)
  *
  * Includes the target, header profile, optimization level, device header
  * configuration, and ordered frontend flags. Output-format, artifact-format,
- * and tracing selections do not contribute to this identity.
+ * source-storage, and tracing selections do not contribute to this identity.
  *
  * @param s Settings whose prepared-state identity is requested.
  * @return Comparison string for the represented semantic settings.
@@ -2330,7 +2343,7 @@ struct Run
         llvm::makeIntrusiveRefCnt<llvm::vfs::InMemoryFileSystem>();
 
     /**
-     * @brief Recording filesystem exposing the request overlay and its base.
+     * @brief Operation filesystem exposing request files and any prepared state.
      */
     llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> fs;
 
@@ -2415,6 +2428,12 @@ struct Run
         {
             for (size_t i = 0; i < std::size(clangrtc_headers::file_ranges); ++i)
             {
+                // Libdevice is passed directly to libNVVM, outside the source dependency filesystem.
+                if (i == clangrtc_headers::libdevice)
+                {
+                    continue;
+                }
+
                 auto name = clangrtc_headers::file_destinations[i];
                 auto data = clangrtc_headers::get(i);
                 auto contents = llvm::StringRef(reinterpret_cast<char const *>(data.data()), data.size());
@@ -2507,10 +2526,17 @@ struct Run
                              : llvm::vfs::getRealFileSystem();
         auto overlay = llvm::makeIntrusiveRefCnt<llvm::vfs::OverlayFileSystem>(base);
         overlay->pushOverlay(inputs);
-        // Prepared dependencies are already owned by the artifact. Recording their reads would
-        // copy PCH/BMI buffers and header contents again on every consumer compilation.
-        fs = artifact ? llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem>(overlay)
-                      : llvm::makeIntrusiveRefCnt<RecordFS>(overlay, files);
+        // Serialized ASTs own their source buffers. Capture a separate include archive only
+        // for source artifacts or when requested explicitly; normal compilations need neither.
+        if (preparing && (settings.artifactSources || settings.artifact == "cuda" ||
+                          settings.artifact == "preprocessed-cuda"))
+        {
+            fs = llvm::makeIntrusiveRefCnt<RecordFS>(overlay, files);
+        }
+        else
+        {
+            fs = overlay;
+        }
     }
 
     /**
@@ -3039,6 +3065,11 @@ void finish_module(std::unique_ptr<llvm::Module> module, Settings const &setting
         CR_CHECK_NVVM(nvvm().nvvmCreateProgram(&program), program);
         CR_CHECK_NVVM(nvvm().nvvmAddModuleToProgram(program, result->output.data(), result->output.size(), "clangrtc"),
                       program);
+        // Borrow the pinned backend's bitcode; lazy loading imports only referenced device definitions.
+        auto libdevice = clangrtc_headers::get<"libdevice">();
+        CR_CHECK_NVVM(nvvm().nvvmLazyAddModuleToProgram(program, reinterpret_cast<char const *>(libdevice.data()),
+                                                        libdevice.size(), "libdevice"),
+                      program);
         auto architecture = std::format("-arch=compute_{}", settings.target.substr(3));
         std::vector<char const *> options{architecture.c_str(), "-nvvm-latest"};
 
@@ -3127,6 +3158,13 @@ clangrtcStatus operate(clangrtcRequest const *request, clangrtcString const *opt
             inv->getLangOpts().PCHInstantiateTemplates = true;
         }
 
+        if (preparing && (mode == "pch" || mode == "bmi" || mode == "reduced-bmi"))
+        {
+            // Clang lazily reads token spellings and diagnostic locations from source buffers.
+            // Keep those buffers in the AST itself instead of requiring a second header archive.
+            inv->getFrontendOpts().ModulesEmbedAllFiles = !run.settings.artifactSources;
+        }
+
         auto ci = run.compiler(inv, diag);
 
         if (preparing)
@@ -3181,6 +3219,7 @@ clangrtcStatus operate(clangrtcRequest const *request, clangrtcString const *opt
                 // Finish header-only pending instantiations once during AOT preparation, rather
                 // than repeating standard-library template work in every importing consumer.
                 bootstrap->getLangOpts().PCHInstantiateTemplates = true;
+                bootstrap->getFrontendOpts().ModulesEmbedAllFiles = !run.settings.artifactSources;
                 auto boot = run.compiler(bootstrap, diag);
                 clang::GeneratePCHAction pch;
                 auto begin = Clock::now();

@@ -15,20 +15,28 @@
 #include "artifact_fixture.hpp"
 
 #include <format>
+#include <fstream>
 
 namespace test
 {
 /**
- * @brief Keep packaged dependencies and preparation-time expression metadata in each artifact.
+ * @brief Keep preparation slots and archive dependencies only when source artifacts require them.
  *
  * Inspects the loaded artifact after fixture setup has removed the original files and compares retained symbols and
- * kernel names.
+ * kernel names. PCH/BMI artifacts keep source buffers inside their AST rather than in the separate archive.
  */
 TEST_P(ArtifactTest, OwnsDependencyClosureAndPreparationSlots)
 {
     clangrtcArtifactInfo info{};
     ASSERT_EQ(clangrtcGetArtifactInfo(artifact.get(), &info), CLANGRTC_SUCCESS);
-    EXPECT_GT(info.dependencyCount, 2);
+    if (isSource())
+    {
+        EXPECT_GT(info.dependencyCount, 2);
+    }
+    else
+    {
+        EXPECT_EQ(info.dependencyCount, 0);
+    }
     EXPECT_EQ(info.packageSize, package.size());
     EXPECT_EQ(to_string(info.format), GetParam());
     ASSERT_EQ(info.symbolCount, preparedExpressions.size());
@@ -247,6 +255,191 @@ INSTANTIATE_TEST_SUITE_P(Formats, ArtifactTest,
 
                              return name;
                          });
+
+/** @brief Exercise serialized compiler state with and without a separately accessible header archive. */
+class ArtifactSourcesTest : public CompilationTest, public ::testing::WithParamInterface<std::string>
+{
+  protected:
+    /** @brief Header removed immediately after preparing each artifact. */
+    std::string headerPath;
+
+    /** @brief Declaration-only header used to check diagnostic source locations. */
+    std::string diagnosticHeaderPath;
+
+    /** @brief Prepare a template and macro definitions, then remove the original header. */
+    Operation prepare_header(bool archive)
+    {
+        headerPath = (temporary.path / "prepared.hpp").string();
+
+        {
+            std::ofstream header(headerPath);
+            header << "#pragma once\n"
+                      "#define PREPARED_ADD(value) ((value) + 7)\n"
+                      "#define PREPARED_STRING(value) #value\n"
+                      "namespace prepared {\n"
+                      "template <class T> __device__ constexpr int evaluate() {\n"
+                      "    static_assert(sizeof(T) > 1, \"prepared header assertion\");\n"
+                      "    return PREPARED_ADD(sizeof(T));\n"
+                      "}\n"
+                      "}\n";
+        }
+
+        auto locationPath = (temporary.path / "locations.hpp").string();
+        diagnosticHeaderPath = (temporary.path / "declarations.hpp").string();
+
+        {
+            std::ofstream header(diagnosticHeaderPath);
+            header << "namespace prepared { __device__ int deleted(int) = delete; }\n";
+        }
+
+        {
+            std::ofstream header(locationPath);
+            header
+                << "namespace prepared {\n"
+                   "template <class T> __device__ constexpr bool location() {\n"
+                   "    return __builtin_LINE() == __LINE__ && __builtin_COLUMN() > 0 && __builtin_FILE()[0] == '/';\n"
+                   "}\n"
+                   "template <class T> __device__ constexpr bool call() { return T::line() > 0; }\n"
+                   "template <class T> __device__ constexpr bool construct() { T value; return value.value > 0; }\n"
+                   "template <class T> __device__ constexpr bool aggregate() { return T{}.value > 0; }\n"
+                   "}\n";
+        }
+
+        auto module = GetParam() != "pch";
+        auto source = module ? std::string("module;\n#include <clangrtc/device.hpp>\n") : std::string{};
+        source.append(std::format("#include \"{}\"\n#include \"{}\"\n#include \"{}\"\n", headerPath, locationPath,
+                                  diagnosticHeaderPath));
+
+        if (module)
+        {
+            source.append("export module prepared_headers;\n"
+                          "export namespace prepared { using ::prepared::evaluate; using ::prepared::location; "
+                          "using ::prepared::call; using ::prepared::construct; using ::prepared::aggregate; "
+                          "using ::prepared::deleted; }\n");
+        }
+
+        auto flags = options;
+        flags.push_back(std::format("--artifact={}", GetParam()));
+
+        if (archive)
+        {
+            flags.push_back("--artifact-sources");
+        }
+
+        auto input = request(source, {});
+        input.source.path = to_view("/__clangrtc__/prepared_headers.cppm");
+        auto result = prepare(input, flags);
+        std::filesystem::remove(headerPath);
+        std::filesystem::remove(locationPath);
+        std::filesystem::remove(diagnosticHeaderPath);
+        return result;
+    }
+
+    /** @brief Import the prepared declarations and append a new consumer translation unit. */
+    Operation consume(clangrtcArtifact artifact, std::string_view source)
+    {
+        auto consumer = GetParam() == "pch" ? std::string{} : std::string("import prepared_headers;\n");
+        consumer.append(source);
+        auto input = request(consumer, {});
+        input.artifact = artifact;
+        return compile(input, {});
+    }
+};
+
+/** @brief Preserve source-location builtins, dependent defaults, and diagnostics after original headers disappear. */
+TEST_P(ArtifactSourcesTest, PreservesSourceDependentSemantics)
+{
+    auto prepared = prepare_header(false);
+    ASSERT_EQ(prepared.status, CLANGRTC_SUCCESS) << prepared.log();
+    auto loaded = load(prepared.output());
+    ASSERT_EQ(loaded.status, CLANGRTC_SUCCESS);
+    clangrtcArtifactInfo info{};
+    ASSERT_EQ(clangrtcGetArtifactInfo(loaded.artifact.get(), &info), CLANGRTC_SUCCESS);
+    EXPECT_EQ(info.dependencyCount, 0);
+    auto compiled = consume(loaded.artifact.get(), R"CUDA(
+        static_assert(prepared::evaluate<long long>() == sizeof(long long) + 7);
+        static_assert(prepared::location<int>());
+
+        struct Runtime
+        {
+            int value;
+
+            __device__ constexpr Runtime(int value = __builtin_LINE()) : value(value)
+            {
+            }
+
+            __device__ static constexpr int line(int value = __builtin_LINE())
+            {
+                return value;
+            }
+        };
+
+        struct Aggregate
+        {
+            int value = __builtin_LINE();
+        };
+
+        static_assert(prepared::call<Runtime>());
+        static_assert(prepared::construct<Runtime>());
+        static_assert(prepared::aggregate<Aggregate>());
+
+        extern "C" __global__ void consumer(int *out)
+        {
+            *out = prepared::evaluate<int>();
+        }
+    )CUDA");
+    ASSERT_EQ(compiled.status, CLANGRTC_SUCCESS) << compiled.log();
+
+    if (GetParam() == "pch")
+    {
+        auto macros = consume(loaded.artifact.get(), R"CUDA(
+            static_assert(PREPARED_ADD(5) == 12);
+            static_assert(sizeof(PREPARED_STRING(a_token)) == 8);
+        )CUDA");
+        EXPECT_EQ(macros.status, CLANGRTC_SUCCESS) << macros.log();
+    }
+
+    auto invalid = consume(loaded.artifact.get(),
+                           "extern \"C\" __global__ void invalid(int *out) { *out = prepared::evaluate<char>(); }");
+    EXPECT_EQ(invalid.status, CLANGRTC_COMPILATION_FAILED) << invalid.log();
+    EXPECT_NE(invalid.log().find("prepared header assertion"), std::string::npos);
+    EXPECT_NE(invalid.log().find(std::format("{}:6:", headerPath)), std::string::npos) << invalid.log();
+    EXPECT_EQ(invalid.log().find("cannot open file"), std::string::npos) << invalid.log();
+
+    auto deleted = consume(loaded.artifact.get(),
+                           "extern \"C\" __global__ void invalid(int *out) { *out = prepared::deleted(0); }");
+    EXPECT_EQ(deleted.status, CLANGRTC_COMPILATION_FAILED) << deleted.log();
+    EXPECT_NE(deleted.log().find("deleted function"), std::string::npos) << deleted.log();
+    constexpr auto line = 1;
+    EXPECT_NE(deleted.log().find(std::format("{}:{}:", diagnosticHeaderPath, line)), std::string::npos)
+        << deleted.log();
+    EXPECT_EQ(deleted.log().find("cannot open file"), std::string::npos) << deleted.log();
+}
+
+/** @brief Retain raw header files on request so consumers can issue additional includes after preparation. */
+TEST_P(ArtifactSourcesTest, RetainsOptionalSourceArchive)
+{
+    for (bool archive : {false, true})
+    {
+        SCOPED_TRACE(archive);
+        auto prepared = prepare_header(archive);
+        ASSERT_EQ(prepared.status, CLANGRTC_SUCCESS) << prepared.log();
+        auto loaded = load(prepared.output());
+        ASSERT_EQ(loaded.status, CLANGRTC_SUCCESS);
+        clangrtcArtifactInfo info{};
+        ASSERT_EQ(clangrtcGetArtifactInfo(loaded.artifact.get(), &info), CLANGRTC_SUCCESS);
+        EXPECT_EQ(info.dependencyCount != 0, archive);
+
+        if (archive)
+        {
+            auto compiled = consume(loaded.artifact.get(), std::format("#include \"{}\"\n", headerPath));
+            EXPECT_EQ(compiled.status, CLANGRTC_SUCCESS) << compiled.log();
+        }
+    }
+}
+
+/** @brief Cover ordinary PCH and both named-module formats with the same source ownership contracts. */
+INSTANTIATE_TEST_SUITE_P(Formats, ArtifactSourcesTest, ::testing::Values("pch", "bmi", "reduced-bmi"));
 
 /**
  * @brief Reject input that does not contain a serialized artifact package.

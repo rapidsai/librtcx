@@ -127,6 +127,26 @@ TEST_F(CompilationTest, BackendOutputs)
     }
 }
 
+/** @brief Resolve libdevice calls into PTX instructions without leaving external math or popcount dependencies. */
+TEST_F(CompilationTest, LinksLibdeviceIntoPtx)
+{
+    options.push_back("--ptx-text");
+    auto result = compile(request(R"CUDA(
+#include <cmath>
+
+                                      extern "C" __global__ void kernel(double *out, double value, unsigned bits)
+                                      {
+                                          *out = std::sqrt(value) + __popc(bits);
+                                      }
+                                  )CUDA",
+                                  {}),
+                          options);
+    ASSERT_EQ(result.status, CLANGRTC_SUCCESS) << result.log();
+    auto ptx = result.output();
+    EXPECT_NE(ptx.find("sqrt.rn.f64"), std::string::npos);
+    EXPECT_NE(ptx.find("popc.b32"), std::string::npos);
+}
+
 /**
  * @brief Attribute libNVVM rejection to the backend and discard partial output.
  *

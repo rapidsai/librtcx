@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# @file EmbedHeaders.cmake @brief Bundle clangrtc workarounds and Clang resource headers using
-# rtcx_embed.
+# @file EmbedHeaders.cmake @brief Bundle compiler headers and the pinned libdevice using rtcx_embed.
 
 set(_rtcx_source "${CMAKE_CURRENT_SOURCE_DIR}/../..")
 include("${_rtcx_source}/cmake/modules/embed.cmake")
@@ -135,6 +134,17 @@ rtcx_embed_includes(
     stdnoreturn.h
     tgmath.h
     unwind.h)
+
+rtcx_embed_blob(
+    clangrtc_headers
+    ID
+    libdevice
+    FILE
+    "${CLANGRTC_BUNDLED_NVVM_ROOT}/nvvm/libdevice/libdevice.10.bc"
+    DEST
+    /__clangrtc__/libdevice.10.bc
+    TAG
+    libdevice)
 
 rtcx_embed(clangrtc_headers COMPRESSION none OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 # Use the same pinned xxHash for the generator even when embedded in a parent project.
